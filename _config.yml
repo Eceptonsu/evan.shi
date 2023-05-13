@@ -13,6 +13,8 @@ email: a-mail@mail.mail
 logo: "/assets/images/evan_photo.jpg"
 float_logo: true # true, false (default)
 
+icon: "/assets/images/ES_logo.jpg"
+
 # blog cover
 cover: "/assets/images/cover_photo.jpg"
 
@@ -41,23 +43,23 @@ social:
 #    share_title: ?text=
 #   share_link: "&amp;url="
 
-#  - icon:	facebook
-#    url:	https://facebook.com/???
-#    desc: Connect with me facebook
-#    share_url: https://www.facebook.com/sharer.php
-#    share_title: ?t=
-#    share_link: "&amp;u="
-
   - icon:	github
     url:	https://github.com/Eceptonsu/
-    desc:
+    desc: Check out my github
     share_url:
     share_title:
     share_link:
 
   - icon:	linkedin
     url:	https://www.linkedin.com/in/evan-shi-cs/
-    desc:
+    desc: Connect with me through linkedin
+    share_url:
+    share_title:
+    share_link:
+
+  - icon:  instagram
+    url: https://www.instagram.com/eceptonsu/
+    desc: Check out my instagram
     share_url:
     share_title:
     share_link:
