@@ -13,6 +13,11 @@
           <time datetime="{{ awa.date | date_to_xmlschema }}">{{ awa.date | date:from_to_format }}</time>
         </p>
       {% endif %}
+      {% if awa.startDate.size > 0 %}
+        <p class="faded">
+          {% include components/from-to.html from=awa.startDate to=awa.endDate format=from_to_format %}
+        </p>
+      {% endif %}
       <h3 class="h4 faded" property="award">
         {% capture title %}<span class="bc">{{ awa.title }}</span>{% endcapture %}
         {% capture awarder %}<span class="bc">{{ awa.awarder }}</span>{% endcapture %}

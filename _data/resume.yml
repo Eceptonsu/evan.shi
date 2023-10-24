@@ -3,21 +3,17 @@
 # See also: <https://jsonresume.org/>.
 basics:
   name: "Evan (Bowen) Shi"
-  label: "CS Grad Student & Full Stack Developer"
+  label: "CS Grad Student"
   picture: "/assets/img/general/evan_photo.jpg"
-  email: "evan.shi@yale.edu"
-  phone: "(949) 668-5898"
-  #website: "https://piedpiper.com"
+  website: "https://evanshi.github.io"
   summary: >
-    Richard hails from Tulsa.
-    He has earned degrees from the University of Oklahoma and Stanford. (Go Sooners and Cardinals!)
-    Before starting Pied Piper, he worked for Hooli as a part time software developer.
-    While his work focuses on applied information theory,
-    mostly optimizing lossless compression schema of both the length-limited and adaptive variants,
-    his non-work interests range widely,
-    everything from quantum computing to chaos theory.
-    He could tell you about it, but THAT would NOT be a “length-limited” conversation!
-    Open `_data/resume.yml` to edit this text.
+    I completed my BS in Computer Science & Game Simulation Art Science at Rensselaer Polytechnic Institute 
+    and am now pursuing an MS in Computer Science at Yale University. This educational journey has equipped me 
+    with a solid programming and game development foundation. I am proficient in many programming languages, 
+    including C, C++, and Python. My experience in game engines like Unity and Unreal has further expanded 
+    my technical horizon, enabling me to bring imaginative game concepts to life. Additionally, 
+    I am actively involved in the rapidly evolving field of Natural Language Processing, 
+    contributing to research initiatives that delve into AI creativity.
   location:
     address: ""
     postalCode: ""
@@ -33,74 +29,117 @@ basics:
       url: "https://www.linkedin.com/in/evan-shi-cs/"
 
 work:
-  - company: "Pied Piper"
-    position: "CEO/President"
-    website: "https://piedpiper.com"
-    startDate: "2013-12-01"
-    endDate: ""
-    summary: >
-      Pied Piper is a multi-platform technology based on a proprietary universal compression algorithm that has
-      consistently fielded high Weisman Scores™ that are not merely competitive,
-      but approach the theoretical limit of lossless compression.
+  - company: "Submitty"
+    position: "Open Source Developer"
+    website: "https://submitty.org/"
+    startDate: "2022-05-01"
+    endDate: "2023-05-01"
     highlights:
-      - "Built an algorithm for artist to detect if their music was violating copy right infringement laws"
-      - "Successfully won Techcrunch Disrupt"
-      - "Optimized an algorithm that holds the current world record for Weisman Scores"
+      - "Participated in full stack development in Linux, PHP, C++, Python, JS."
+      - "Modified and improved the functionality of auto-grader, PDF annotation, code difference viewer, and other front-end features such as simple grading."
+
+  - company: "Rensselaer Polytechnic Institute"
+    position: "Undergraduate Researcher"
+    website: ""
+    startDate: "2021-12-01"
+    endDate: "2023-05-01"
+    highlights:
+      - "Conducted NLP-based research with Prof. Mei Si."
+      - "Proposed a data cleaning pipeline for open text description of emotions and fine-tuned existing language models for controlled narrative generation for an immersive co-creation experience."
+      - "Investigated more recent techniques and formulated a set of guidelines for integrating humor generation in advanced large language models."
+
+  - company: "Rensselaer Polytechnic Institute"
+    position: "Undergraduate Mentor"
+    website: ""
+    startDate: "2020-08-01"
+    endDate: "2023-05-01"
+    highlights:
+      - "Assisted in lab sessions, office hours and grading for CSCI 1100, CSCI 1200, CSCI 2200."
+      - "Shared insights about course materials with students to boost their understanding and their interests in corresponding concepts and programming knowledge."
+
+  - company: "Jingxuan Architectural Design & Consulting"
+    position: "3D Modeler"
+    website: ""
+    startDate: "2017-07-01"
+    endDate: "2017-08-01"
+    highlights:
+      - "Brainstormed ideas about conceptual designs of modern infrastructures and residential houses."
+      - "Carried out basic modeling and rendering processes using 3dsMax."
+
 volunteer:
-  - organization: "CoderDojo"
-    position: "Teacher"
-    website: "https://coderdojo.com/"
-    startDate: "2012-01-01"
-    endDate: "2013-01-01"
-    summary: "Global movement of free coding clubs for young people."
+  - organization: "Discovery Cube"
+    position: "Core volunteer"
+    website: "https://www.discoverycube.org/"
+    startDate: "2016-08-01"
+    endDate: "2018-12-01"
     highlights:
-      - "Awarded 'Teacher of the Month'"
+      - "Performed clerical and maintenance tasks."
+      - "Developed activities to help children learn more about science."
+      - "Interacted with children to promote their physical and emotional development through various themed exhibits."
+
 education:
+  - institution: "Yale University"
+    area: "Computer Science"
+    studyType: "Master"
+    startDate: "2023-08-01"
+    endDate: ""
+
   - institution: "Rensselaer Polytechnic Institute"
     area: "Computer Science & Game Simulation Art Science"
     studyType: "Bachelor"
     startDate: "2019-08-01"
     endDate: "2023-05-01"
-    gpa: "3.91"
-    courses:
-      - "DB1101 - Basic SQL"
-      - "CS2011 - Java Introduction"
+    gpa: "3.95"
+
 awards:
-  - title: "Digital Compression Pioneer Award"
-    date: "2014-11-01"
-    awarder: "Techcrunch"
-    summary: "There is no spoon."
+  - title: "Dean’s Honor List"
+    startDate: "2019-12-01"
+    endDate: "2023-05-01"
+    awarder: "Rensselaer Polytechnic Institute"
+
+  - title: "Academic Recognition Letter"
+    date: "2022-08-01"
+    awarder: "Rensselaer Polytechnic Institute"
+
 publications:
-  - name: "Video compression for 3d media"
-    publisher: "Hooli"
-    releaseDate: "2014-10-01"
-    website: "https://en.wikipedia.org/wiki/Silicon_Valley_(TV_series)"
-    summary: "Innovative middle-out compression algorithm that changes the way we store data."
+  - name: "Prompt to GPT-3: Step-by-Step Thinking Instructions for Humor Generation"
+    publisher: "Yuetian Chen, Bowen Shi, Mei Si"
+    releaseDate: "2023-06-01"
+    website: "https://arxiv.org/abs/2306.13195"
+  - name: "Automated Visual Story Synthesis with Character Trait Control"
+    publisher: "Yuetian Chen, Bowen Shi, Peiru Liu, Ruohua Li, Mei Si"
+    releaseDate: "2023-02-01"
+    website: "https://openaccess.cms-conferences.org/publications/book/978-1-958651-48-3/article/978-1-958651-48-3_7"
+  - name: "Visual Story Generation Based on Emotion and Keywords"
+    publisher: "Yuetian Chen, Ruohua Li, Bowen Shi, Peiru Liu, Mei Si"
+    releaseDate: "2023-01-01"
+    website: "https://arxiv.org/abs/2301.02777"
+
 skills:
-  - name: "Web Development"
-    level: "Master"
+  - name: "Programming Languages"
     keywords:
-      - "HTML"
-      - "CSS"
-      - "Javascript"
-  - name: "Compression"
-    level: "Master"
+      - "C++"
+      - "C"
+      - "Python"
+      - "Java"
+      - "PHP"
+      - "JS"
+      - "C#"
+      - "Lua"
+  - name: "Game Engine"
     keywords:
-      - "Mpeg"
-      - "MP4"
-      - "GIF"
+      - "Unity"
+      - "Unreal"
+      - "Roblox"
+      - "Godot"
+  - name: "Machine Learning"
+    keywords:
+      - "NLP"
+      - "CV"
+      - "RL"
+
 languages:
   - language: "Chinese"
     fluency: "Native proficiency"
   - language: "English"
     fluency: "Bilingual proficiency"
-interests:
-  - name: "Wildlife"
-    keywords:
-      - "Ferrets"
-      - "Unicorns"
-references:
-  - name: "Erlich Bachman"
-    reference: >
-      It is my pleasure to recommend Richard, his performance working as a consultant for Main St.
-      Company proved that he will be a valuable addition to any company.

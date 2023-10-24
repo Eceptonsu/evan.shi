@@ -8,6 +8,8 @@ sitemap: false
 ## Website Content
 All rights reserved by Evan Shi. Reproductions without permission are forbidden.
 
+This website represents my **personal opinion** and, unless otherwise specified, is not endorsed by parties that I involve with.
+
 | Work                                                   | License        | Changes
 |:-------------------------------------------------------|:---------------|:-
 | Photo by [Jeremy Bishop][jb]                           | [Unsplash]     | Liquify filter, blur
