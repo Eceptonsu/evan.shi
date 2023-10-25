@@ -13,7 +13,7 @@ Hello, and welcome! My name is **Evan (Bowen) Shi**. I've recently graduated fro
 ![Full-width image](/assets/img/general/evan_photo_welcome.jpg){:.lead width="800" height="100"}
 
 ## My work
-My journey through the fields of Computer Science and Game Simulation Art Science has culminated in a variety of projects that showcases my technical and creative prowess. I invite you to peruse [My Work](/projects) page, where each project is a milestone of my continual pursuit of knowledge and experience in this vast field.
+My journey through the fields of Computer Science and Game Simulation Art Science has culminated in a variety of projects that showcases my technical and creative prowess. I invite you to peruse [Projects](/projects) page, where each project is a milestone of my continual pursuit of knowledge and experience in this vast field.
 
 ## My Resume
-In case you will be looking for more details about me, you can do that by accessing my [Resume](/resume).
+In case you want to find more details about me, you can do that by accessing my [Resume](/resume).

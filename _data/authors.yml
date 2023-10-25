@@ -8,19 +8,16 @@ author1:
   # Used at the bottom of each page and at the top of the `about` layout
   # Markdown enabled, can use multiple paragraphs (enabled by `|`)
   about:             |
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit,
-    sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-    Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-    
-    Open `_data/authors.yml` to edit this text.
+    I completed my BS in Computer Science & Game Simulation Art Science at Rensselaer Polytechnic Institute 
+    and am now pursuing an MS in Computer Science at Yale University. To learn more about me, please access my [Resume](/resume).
 
   # This photo will be used in the about section
   picture:
-    path:            https://placehold.it/128x128
+    path:            /assets/img/general/evan_photo.jpg
     # srcset is optional, but can be used to provide higher res versions for retina displays
     srcset:
-      1x:            https://placehold.it/128x128
-      2x:            https://placehold.it/256x256
+      1x:            /assets/img/general/evan_photo.jpg
+      2x:            /assets/img/general/evan_photo.jpg
 
   # Social media icons in sidebar
   # Comment/uncommet to show/hide
