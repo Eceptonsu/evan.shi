@@ -1,6 +1,6 @@
 # evan-shi.com: Evan's Personal Website
 
-This repo hosts [`evan-shi.com`](https://evan-shi.com/), where I express my thoughts, showcase my work, and share what I'm passionate about. 
+This repo hosts [`evan-shi.com`](https://evan-shi.com/), where I express my thoughts and showcase my work. 
 
 ## Resources
 
@@ -8,7 +8,7 @@ This repo hosts [`evan-shi.com`](https://evan-shi.com/), where I express my thou
   
 - **[Netlify](https://www.netlify.com/):** An incredible platform for hosting my static websites.
 
-To understand more about how these resources contribute to my website, feel free to visit their official sites linked above.
+To understand more about how these resources contribute to my website, feel free to visit their sites linked above.
 
 ## License
 
@@ -16,4 +16,4 @@ This project is licensed under the following [terms](https://github.com/Eceptons
 
 ## Connect with Me
 
-Interested in discussing something you've seen on the site? Reach out to me via the contact info listed on [my website](https://evan-shi.com/).
+Interested in discussing something you've seen on the site? Reach out to me via the contact info listed on [my website](https://evan-shi.com/). I'm always open to interesting conversations and more.
