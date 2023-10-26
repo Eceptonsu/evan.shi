@@ -11,8 +11,8 @@ image:
   path: /assets/img/projects/finding-flora.png
   srcset: 
     1920w: /assets/img/projects/finding-flora.jpg
-    960w:  /assets/img/projects/hydejack-site@0,5x.jpg
-    480w:  /assets/img/projects/hydejack-site@0,25x.jpg
+    960w:  /assets/img/projects/finding-flora@0,5.jpg
+    480w:  /assets/img/projects/finding-flora@0,25.jpg
 links:
   - title: itch.io
     url: https://tygentry.itch.io/finding-flora

@@ -10,8 +10,8 @@ image:
   path: /assets/img/projects/submitty_logo.png
   srcset: 
     1920w: /assets/img/projects/submitty_logo.png
-    960w:  /assets/img/projects/submitty_logo@0,5x.jpg
-    480w:  /assets/img/projects/submitty_logo@0,25x.jpg
+    960w:  /assets/img/projects/submitty_logo@0,5.png
+    480w:  /assets/img/projects/submitty_logo@0,25.png
 links:
   - title: Submitty
     url: https://submitty.org/index/overview
