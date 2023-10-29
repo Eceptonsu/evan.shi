@@ -6,7 +6,7 @@ description: >
   Finding Flora is a relaxing third-person platformer where you play as a simple caterpillar, infatuated with a beautiful flower you saw as you hatched from your egg. Traverse the
   treetops of a dense forest and avoid predators as you climb trees and hop from branch to branch to eat tasty leaves. Eat enough and you are able to metamorphose into an exquisite
   butterfly, all in order to reach that flower on the forest floor.
-date: '12-01-2021'
+date: '12-01-2020'
 image: 
   path: /assets/img/projects/finding-flora.png
   srcset: 
