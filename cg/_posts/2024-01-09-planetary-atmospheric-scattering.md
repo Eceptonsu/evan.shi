@@ -6,6 +6,8 @@ description: >
 image: /assets/img/blog/space.png
 sitemap: false
 accent_image: /assets/img/blog/space.png
+accent_color: '#4d5769'
+theme_color: '#4d5769'
 ---
 
 **Atmospheric scattering is complicated.** It involves intricate light interactions with various particles and gases within a planet's atmosphere, and the light transport equation in a participating medium applied to the atmosphere is very difficult to solve. Therefore, many promises have been made in earlier works to render atmospheric phenomena such as sunsets, sky colors, and aerial perspectives in real-time. [Eric Bruneton and Fabrice Neyret's approach](https://github.com/ebruneton/precomputed_atmospheric_scattering?tab=readme-ov-file) aims to overcome these challenges by employing precomputed atmospheric scattering techniques. The method significantly reduces the computational demands commonly associated with atmospheric rendering using precomputed look-up tables for key components like transmittance, single scattering, multiple scattering, and ground irradiance.
@@ -52,7 +54,7 @@ $$
 
 In real-time rendering, we can not afford to compute light scattering for each individual wavelength. Instead, we approximate the energy distribution across the spectrum using the three RGB components, so the $$\lambda$$ term is assigned to a certain value, referred to as $$\lambda_0$$. Therefore, we have the following functions for scattering coefficient $$\beta_s$$, extinction coefficient $$\beta_t$$ and phase function $$P$$:
 
-$$    
+$$
   \begin{aligned}
       \beta_s(h,\lambda)&=\beta_R^s(h)+\beta_M^s(h) \\[1em]
       \beta_e(h,\lambda)&=\beta_R^s(h)+\beta_M^e(h)+\beta_O^a(h) \\[1em]
@@ -160,7 +162,7 @@ By multiple scattering, we mean that the light from the Sun reaches the observer
 
 Multiple scattering can be broken down into the sum of double scattering, triple scattering, and so on, with each term representing light reaching a point in the atmosphere after exactly two, three, etc., bounces. In addition, each term can be calculated based on the previous one; that is, the light arriving at some point $$p$$ from direction $$\omega$$ after $$n$$ bounces is an integral over all the possible points $$q$$ for the last bounce, which involves the light arriving at $$q$$ from any direction, after $$n-1$$ bounces.
 
-Unfortunately, the calculation at each scattering order requires a triple integral based on the previous scattering order: one integral over all the points $q$on the line segment from $$p$$ to the nearest atmosphere boundary in direction $$\omega$$, as well as a nested double integral over all directions at each point $$q$$. It will be extremely inefficient if we perform the calculation naively. As suggested by Eric Bruneton and Fabrice Neyret in their work, we use the following algorithm when dealing with multiple scattering:
+Unfortunately, the calculation at each scattering order requires a triple integral based on the previous scattering order: one integral over all the points $$q$$ on the line segment from $$p$$ to the nearest atmosphere boundary in direction $$\omega$$, as well as a nested double integral over all directions at each point $$q$$. It will be extremely inefficient if we perform the calculation naively. As suggested by Eric Bruneton and Fabrice Neyret in their work, we use the following algorithm when dealing with multiple scattering:
 
 ~~~python
     # Precompute single scattering in a texture.
@@ -181,7 +183,7 @@ Multiple scattering computation
 where the calculations for $$p$$ involve only a double integral, and the calculations for $$q$$ involve only a single integral, since it is based on the precomputed texture in the previous step.
 
 #### Multiple scattering precomputation
-To save computation time when calculating the next order, we must precompute each scattering order in a texture, which requires a mapping from function parameters to texture coordinates. Fortunately, all scattering orders rely on the same $$(r,\mu,\mu_s,\nu)$$ parameters as the single scattering described in Section 4. Therefore, we can conveniently reuse the mappings defined for single scattering.
+To save computation time when calculating the next order, we must precompute each scattering order in a texture, which requires a mapping from function parameters to texture coordinates. Fortunately, all scattering orders rely on the same $$(r,\mu,\mu_s,\nu)$$ parameters as the single scattering described before. Therefore, we can conveniently reuse the mappings defined for single scattering.
 
 #### Multiple scattering look-up
 Likewise, we can simply reuse the same look-up procedure for single scattering to read a value from the precomputed textures for multiple scattering.
@@ -202,6 +204,10 @@ As mentioned in the previous section, the irradiance depends only on $$r$$ and $
 
 The ground irradiance look-up is relatively straightforward, as it can be accomplished with just a single texture look-up similar to what we did for transmittance textures.
 
+## Precomputed LUTs
+
+After implementing the methodology outlined above, we are able to precompute all necessary Look-Up Tables (LUTs) for real-time rendering. These LUTs appear as follows:
+
 ![](/assets/img/blog/as-luts.png){:.lead width="1500" height="400" loading="lazy"}
 
 Figure 3: Look-up tables/textures. (a): The 2D transmittance texture. (b): The 4D single scattering texture. (c): The 4D scattering texture that combines all scattering orders (4 scattering orders in this case). (d) The 2D ground irradiance texture.
@@ -209,13 +215,17 @@ Figure 3: Look-up tables/textures. (a): The 2D transmittance texture. (b): The 4
 
 ## Results and discussion
 
-All rendering of this paper is provided by the CPU renderer, which samples the entire spectrum to give a radiance spectrum of pixels. Based on this radiance spectrum, we can calculate the color of the pixels in different ways. If not explicitly stated, the result is to first integrate the radiance spectrum with the CIE XYZ basis, converting it to CIE XYZ luminance and then to linear sRGB luminance.  The output images are saved as PNG at 8-bit for each channel, after the luminance is gamma corrected ($$\gamma = 2.2$$) and tone mapped.  Figure 4 (a) shows a less-accurate result with only 3 radiance samples without converting to sRGB.  The GPU renderer aims to be real-time by sacrificing the color accuracy, which only samples at RGB wavelengths for radiance.
+We have developed two distinct engines to showcase the outcomes of our project: a command-line-based engine and a graphical user interface (GUI) based engine. The first engine, the command-line-based variant, is capable of generating a two-dimensional image of a predefined scene in real-time, with users having the ability to customize various elements such as camera angles and positioning. The second engine, utilizing a graphical interface, offers users an enhanced level of control over the scene, including adjustments to sun position, color balance, and even vertex and fragment shaders modifications within the engine. These features enable users to manipulate a range of aspects, creating a more immersive and interactive experience. Both engine utilizes precomputed LUTs from the atmosphere model we created.
 
-Precomputation takes about 200 seconds to generate all the LUTs in 20 threads with fourth order multiple scattering.  Once generated, the LUTs are simply copied to memory and rendered immediately.  The GPU renderer can read half precision LUTs and render the atmosphere at more than 144 frames per second, and can adjust the camera and the position of the sun in real time.
+All the renderings are provided by the CPU renderer, which samples the entire spectrum to give a radiance spectrum of pixels. Based on this radiance spectrum, we can calculate the color of the pixels in different ways. If not explicitly stated, the result is to first integrate the radiance spectrum with the CIE XYZ basis, converting it to CIE XYZ luminance and then to linear sRGB luminance. The output images are saved as PNG at 8-bit for each channel, after the luminance is gamma corrected ($$\gamma = 2.2$$) and tone mapped.  Figure 4 (a) shows a less-accurate result with only 3 radiance samples without converting to sRGB. The GPU renderer aims to be real-time by sacrificing the color accuracy, which only samples at RGB wavelengths for radiance.
 
-With the limited time, we could only work on implementing Eric Bruneton and Fabrice Neyret's work. There is an efficient model further speed up the computation. Another future work that could fully exploit the ability of rendering full radiance spectrum is to enable the engine to write RGBE files, which could preserve all the radiance data for high dynamic range displays.  Although we also mentioned cloud rendering in the proposal as a side quest, this could also be a future work that could render the interactions between the atmosphere and realistic clouds.
+Precomputation takes about 200 seconds to generate all the LUTs in 20 threads with fourth order multiple scattering. Once generated, the LUTs are simply copied to memory and rendered immediately. The GPU renderer can read half precision LUTs and render the atmosphere at more than 144 frames per second, and can adjust the camera and the position of the sun in real time.
 
 ![](/assets/img/blog/as-results.png){:.lead width="1900" height="350" loading="lazy"}
 
 Figure 4: Planetary atmospheric scattering results from different camera angles and positions. (a): A dawn scene from the planetary surface radiance. (b) A sunrise scene from the planetary surface. (c) An outer space scene that showcases planetary atmospheric scattering on a larger scale.
 {:.figcaption}
+
+##### Acknowledgments
+
+This project, conducted for RPI Advanced Computer Graphics Spring 2023, is primarily built upon the prior works of Eric Bruneton and Fabrice Neyret. We express our gratitude to them for supplying valuable references.
