@@ -17,14 +17,23 @@
 layout: base
 ---
 
+<link rel="stylesheet" href="../../../assets/css/applause-button.css" />
+<script src="../../../assets/js/applause-button.js"></script>
+
 {% assign version = jekyll.version | split:'.' %}
 {% assign major = version[0] | plus:0 %}
 {% assign minor = version[1] | plus:0 %}
 {% assign patch = version[2] | plus:0 %}
 
+{% assign theme_color = include.theme_color %}
+
 {% include_cached components/post.html post=page no_link_title=true no_excerpt=true hide_image=page.hide_image hide_description=page.hide_description %}
 
 {% include components/dingbat.html %}
+
+<div class="applause-button-container" style="display: flex; justify-content: center; align-items: center;">
+  <applause-button style="width: 100px; height: 100px;" color = "{{ page.theme_color }}"/>
+</div>
 
 {% assign addons = page.addons | default:site.hydejack.post_addons %}
 {% unless addons %}{% assign addons = "about,newsletter,related,random" | split:"," %}{% endunless %}
