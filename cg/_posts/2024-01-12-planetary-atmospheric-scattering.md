@@ -217,13 +217,17 @@ Figure 3: Look-up tables/textures. (a): The 2D transmittance texture. (b): The 4
 
 We have developed two distinct engines to showcase the outcomes of our project: a command-line-based engine and a graphical user interface (GUI) based engine. The first engine, the command-line-based variant, is capable of generating a two-dimensional image of a predefined scene in real-time, with users having the ability to customize various elements such as camera angles and positioning. The second engine, utilizing a graphical interface, offers users an enhanced level of control over the scene, including adjustments to sun position, color balance, and even vertex and fragment shaders modifications within the engine. These features enable users to manipulate a range of aspects, creating a more immersive and interactive experience. Both engine utilizes precomputed LUTs from the atmosphere model we created.
 
+![](/assets/img/blog/as-engine.png){:.lead width="2560" height="1440" loading="lazy"}
+Figure 4: GUI based engine.
+{:.figcaption}
+
 All the renderings are provided by the CPU renderer, which samples the entire spectrum to give a radiance spectrum of pixels. Based on this radiance spectrum, we can calculate the color of the pixels in different ways. If not explicitly stated, the result is to first integrate the radiance spectrum with the CIE XYZ basis, converting it to CIE XYZ luminance and then to linear sRGB luminance. The output images are saved as PNG at 8-bit for each channel, after the luminance is gamma corrected ($$\gamma = 2.2$$) and tone mapped.  Figure 4 (a) shows a less-accurate result with only 3 radiance samples without converting to sRGB. The GPU renderer aims to be real-time by sacrificing the color accuracy, which only samples at RGB wavelengths for radiance.
 
 Precomputation takes about 200 seconds to generate all the LUTs in 20 threads with fourth order multiple scattering. Once generated, the LUTs are simply copied to memory and rendered immediately. The GPU renderer can read half precision LUTs and render the atmosphere at more than 144 frames per second, and can adjust the camera and the position of the sun in real time.
 
 ![](/assets/img/blog/as-results.png){:.lead width="1900" height="350" loading="lazy"}
 
-Figure 4: Planetary atmospheric scattering results from different camera angles and positions. (a): A dawn scene from the planetary surface radiance. (b) A sunrise scene from the planetary surface. (c) An outer space scene that showcases planetary atmospheric scattering on a larger scale.
+Figure 5: Planetary atmospheric scattering results from different camera angles and positions. (a): A dawn scene from the planetary surface radiance. (b) A sunrise scene from the planetary surface. (c) An outer space scene that showcases planetary atmospheric scattering on a larger scale.
 {:.figcaption}
 
 ##### Acknowledgments
