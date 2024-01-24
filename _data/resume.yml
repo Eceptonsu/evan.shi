@@ -35,8 +35,9 @@ work:
     startDate: "2022-05-01"
     endDate: "2023-05-01"
     highlights:
-      - "Participated in full stack development in Linux, PHP, C++, Python, JS."
-      - "Modified and improved the functionality of auto-grader, PDF annotation, code difference viewer, and other front-end features such as simple grading."
+      - "Enhanced and maintained a software suite (assignment submission, exam delivery and grade tracking) for college course management on behalf of the RPI Computer Science department, which was implemented through full-stack development using Linux, PHP, C++, Python, and JavaScript"
+      - "Developed auto-grading functionality, PDF annotation tools, and code difference analyzers, contributing to significant improvements in the front-end user experience, based on faculty feedback"
+      - "Facilitated deployment of software suite in 10+ courses, by 20+ professors and impacting 600+ students"
 
   - company: "Rensselaer Polytechnic Institute"
     position: "Undergraduate Researcher"
@@ -44,9 +45,8 @@ work:
     startDate: "2021-12-01"
     endDate: "2023-05-01"
     highlights:
-      - "Conducted NLP-based research with Prof. Mei Si."
-      - "Proposed a data cleaning pipeline for open text description of emotions and fine-tuned existing language models for controlled narrative generation for an immersive co-creation experience."
-      - "Investigated more recent techniques and formulated a set of guidelines for integrating humor generation in advanced large language models."
+      - "Conducted natural language processing (NLP) research, focusing on emotion descriptions, controlled narrative generation and data cleaning pipelines, under Professor Mei Si"
+      - "Developed and fine-tuned language models for immersive narrative generation, incorporating prompt engineering techniques for humor integration within large language models"
 
   - company: "Rensselaer Polytechnic Institute"
     position: "Undergraduate Mentor"
@@ -54,8 +54,8 @@ work:
     startDate: "2020-08-01"
     endDate: "2023-05-01"
     highlights:
-      - "Assisted in lab sessions, office hours and grading for CSCI 1100, CSCI 1200, CSCI 2200."
-      - "Shared insights about course materials with students to boost their understanding and their interests in corresponding concepts and programming knowledge."
+      - "Supervised student laboratory sessions, addressed student questions during office hours and graded assignments for 4 computer science courses"
+      - "Tutored 5-10 students per week, focusing on core computer science concepts and programming techniques, while providing personalized 1:1 guidance"
 
   - company: "Jingxuan Architectural Design & Consulting"
     position: "3D Modeler"
@@ -63,19 +63,27 @@ work:
     startDate: "2017-07-01"
     endDate: "2017-08-01"
     highlights:
-      - "Brainstormed ideas about conceptual designs of modern infrastructures and residential houses."
-      - "Carried out basic modeling and rendering processes using 3dsMax."
+      - "Brainstormed conceptual design of modern infrastructure and residential houses, focusing on sustainability and aesthetic appeal"
+      - "Executed foundational 3D modeling and rendering tasks utilizing 3dsMax, including creating detailed architectural structures and textures, which aided in visualizing final design concepts"
 
 volunteer:
+  - organization: "CyberPatriot Club"
+    position: "Co-founder at Northwood High School"
+    website: ""
+    startDate: "2018-09-01"
+    endDate: "2019-06-01"
+    highlights:
+      - "Co-initiated the CyberPatriot club at Northwood High School, recruiting 20 students during the first year"
+      - "Orchestrated weekly team member hands-on practice sessions and assembled comprehensive training modules for the competition, based on various online resources, focusing on cybersecurity principles and strategies"
+
   - organization: "Discovery Cube"
     position: "Core volunteer"
     website: "https://www.discoverycube.org/"
     startDate: "2016-08-01"
     endDate: "2018-12-01"
     highlights:
-      - "Performed clerical and maintenance tasks."
-      - "Developed activities to help children learn more about science."
-      - "Interacted with children to promote their physical and emotional development through various themed exhibits."
+      - "Performed a range of clerical and maintenance tasks, ensuring smooth daily operations and a welcoming environment for visitors"
+      - "Fostered children's physical and emotional development by actively engaging with them at various themed exhibits, promoting curiosity and a love for learning through hands-on experiences"
 
 education:
   - institution: "Yale University"
@@ -83,13 +91,14 @@ education:
     studyType: "Master"
     startDate: "2023-08-01"
     endDate: ""
+    gpa: "4.00"
 
   - institution: "Rensselaer Polytechnic Institute"
     area: "Computer Science & Game Simulation Art Science"
     studyType: "Bachelor"
     startDate: "2019-08-01"
     endDate: "2023-05-01"
-    gpa: "3.95"
+    gpa: "3.92"
 
 awards:
   - title: "Dean’s Honor List"
