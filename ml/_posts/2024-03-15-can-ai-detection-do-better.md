@@ -18,7 +18,7 @@ However, as pointed out in the work by [Sadasivan et al.](https://arxiv.org/abs/
 
 _The project is a collective effort with Iris Wang and Andrew Yi. The methodology and findings of our project are documented and accessible on [Github](https://github.com/Iris-0829/CPSC-588-AI-Detection)._
 
-_Title image source: https://www.tradoc.army.mil/social-media-fake-news/_
+_Title image source: https://www.tradoc.army.mil/social-media-fake-news/._
 
 ## Methodology
 
