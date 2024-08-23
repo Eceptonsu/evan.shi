@@ -1,5 +1,4 @@
 ---
-
 layout: post  
 title: Procedural Generation of Fantasy Land  
 description: >  
@@ -9,7 +8,6 @@ sitemap: false
 accent_image: /assets/img/blog/city.png  
 accent_color: '#1b026e'  
 theme_color: '#5225e6'
-
 ---
 
 **Procedural generation** provides a solution to the challenges of traditional modeling, which can be time-consuming and lacks the variability needed for large-scale projects. This post explores a project developed by Andrew Yi and me for the Advanced Topics in Computer Graphics course at Yale University, where we aimed to create detailed, realistic 3D environments, focusing on urban landscapes and celestial bodies.

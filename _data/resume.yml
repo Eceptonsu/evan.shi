@@ -29,15 +29,36 @@ basics:
       url: "https://www.linkedin.com/in/evan-shi-cs/"
 
 work:
+  - company: "Yale University"
+    position: "Graduate Teaching Fellow"
+    website: ""
+    startDate: "2023-08-01"
+    endDate: ""
+    highlights:
+      - "Conduct 4-6 office hours per week to provide targeted academic support and guidance to students"
+      - "Supervise 20+ undergraduate learning assistants (ULAs) and manage course logistics, ensuring smooth coordination"
+      - "Developed and implemented test suites and auto-grading systems for 6-8 student assignments"
+
+  - company: "AgentLive Games"
+    position: "Software Engineering / Machine Learning Intern"
+    website: ""
+    startDate: "2024-06-01"
+    endDate: "2024-08-01"
+    highlights:
+      - "Developed APIs to interface with Stable Diffusion, to enable enhanced control of text-to-image (T2I) and image-to-image (I2I) outputs, and created comprehensive documentation for the new functionality"
+      - "Collaborated with the CEO on the development of retrieval-augmented generation (RAG) functionality, including API development and experimental features such as graph-based RAG"
+      - "Designed and developed a web-based interface tool to streamline testing processes, reducing manual testing time by 50%"
+      - "Evaluated multiple open-source large language models (LLMs) by optimizing and fine-tuning these to analyze both output suitability and inference times, and assess feasibility for project requirements"
+
   - company: "Submitty"
     position: "Open Source Developer"
     website: "https://submitty.org/"
     startDate: "2022-05-01"
     endDate: "2023-05-01"
     highlights:
-      - "Enhanced and maintained a software suite (assignment submission, exam delivery and grade tracking) for college course management on behalf of the RPI Computer Science department, which was implemented through full-stack development using Linux, PHP, C++, Python, and JavaScript"
-      - "Developed auto-grading functionality, PDF annotation tools, and code difference analyzers, contributing to significant improvements in the front-end user experience, based on faculty feedback"
-      - "Facilitated deployment of software suite in 10+ courses, by 20+ professors and impacting 600+ students"
+      - "Enhanced and maintained a software suite (assignment submission, exam delivery and grade tracking) for college course management, on behalf of the RPI Computer Science department. Conducted regular updates, optimized code efficiency and resolved bugs through full-stack development using Linux, PHP, C++, Python, and JavaScript"
+      - "Developed auto-grading functionality, PDF annotation tools, and code difference analyzers, contributing to significant improvements in the front-end user experience, based on faculty feedback, vs. the existing experience"
+      - "Facilitated deployment of software suite in 10+ courses, among 10+ professors and through impact on 600+ students"
 
   - company: "Rensselaer Polytechnic Institute"
     position: "Undergraduate Researcher"
@@ -45,8 +66,9 @@ work:
     startDate: "2021-12-01"
     endDate: "2023-05-01"
     highlights:
-      - "Conducted natural language processing (NLP) research, focusing on emotion descriptions, controlled narrative generation and data cleaning pipelines, under Professor Mei Si"
-      - "Developed and fine-tuned language models for immersive narrative generation, incorporating prompt engineering techniques for humor integration within large language models"
+      - "Conducted natural language processing (NLP) research under Professor Mei Si, focusing emotion-driven narrative generation, visual story generation and data pipeline optimization contributing to three published papers"
+      - "Developed language models for immersive narrative generation, incorporating prompt engineering for humor integration"
+      - "Analyzed a dataset of over 10,000 narratives to fine-tune model outputs, improving the synthesis of engaging stories"
 
   - company: "Rensselaer Polytechnic Institute"
     position: "Undergraduate Mentor"
