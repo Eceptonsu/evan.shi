@@ -133,6 +133,10 @@ awards:
     awarder: "Rensselaer Polytechnic Institute"
 
 publications:
+  - name: "MDCure: A Scalable Pipeline for Multi-Document Instruction-Following"
+    publisher: "Gabrielle Kaili-May Liu, Bowen Shi, Avi Caciularu, Idan Szpektor, Arman Cohan"
+    releaseDate: "2024-10-01"
+    website: "https://arxiv.org/abs/2410.23463"
   - name: "Prompt to GPT-3: Step-by-Step Thinking Instructions for Humor Generation"
     publisher: "Yuetian Chen, Bowen Shi, Mei Si"
     releaseDate: "2023-06-01"
@@ -157,6 +161,7 @@ skills:
       - "JS"
       - "C#"
       - "Lua"
+      - "Golang"
   - name: "Game Engine"
     keywords:
       - "Unity"
