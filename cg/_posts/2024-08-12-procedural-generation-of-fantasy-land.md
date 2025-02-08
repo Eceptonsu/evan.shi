@@ -3,14 +3,14 @@ layout: post
 title: Procedural Generation of Fantasy Land  
 description: >  
   Procedural generation offers a dynamic, efficient alternative to traditional modeling methods, creating diverse and intricate environments.  
-image: /assets/img/blog/city.png  
+image: /assets/img/blog/city/city.png  
 sitemap: false  
-accent_image: /assets/img/blog/city.png  
+accent_image: /assets/img/blog/city/city.png  
 accent_color: '#1b026e'  
 theme_color: '#5225e6'
 ---
 
-**Procedural generation** provides a solution to the challenges of traditional modeling, which can be time-consuming and lacks the variability needed for large-scale projects. This post explores a project developed by Andrew Yi and me for the Advanced Topics in Computer Graphics course at Yale University, where we aimed to create detailed, realistic 3D environments, focusing on urban landscapes and celestial bodies.
+**Procedural generation** provides a solution to the challenges of traditional modeling, which can be time-consuming and lacks the variability needed for large-scale projects. This post explores a project developed by [Andrew Yi](https://andrewyibc.github.io/) and me for the Advanced Topics in Computer Graphics (Spring 2024) course at Yale University, where we aimed to create detailed, realistic 3D environments, focusing on urban landscapes and celestial bodies.
 
 The project aimed to craft immersive, futuristic scenes by blending expansive cityscapes with otherworldly planets. The result is a dynamic environment that looks visually stunning and allows for significant customization and scalability.
 
@@ -38,7 +38,7 @@ Detailed facade and window texturing is crucial for creating realistic buildings
 
 In the final stages of city generation, we applied additional enhancements to refine the scene. We did edge beveling to smooth out geometry, and further detailing of window textures to enhance building realism. Moreover, a module for simulating spaceships and spotlights is integrated, introducing animated elements like spacecraft navigating through the city and spotlights illuminating key architectural features. These dynamic elements bring the city to life, making the environment feel more vibrant and lived-in. To ensure the cityscape is both visually appealing and optimized for further use, we perform a series of cleanup operations. These include applying all modifiers to finalize the geometry, removing unused objects, and merging similar objects to streamline the scene.
 
-![](/assets/img/blog/city-partial.png){:.lead width="1920" height="1080" loading="lazy"}
+![](/assets/img/blog/city/city/city-partial.png){:.lead width="1920" height="1080" loading="lazy"}
 Figure 1: A view of the procedurally generated city with all the previously mentioned features enabled.
 {:.figcaption}
 
@@ -60,7 +60,7 @@ The procedural generation of celestial bodies in this project focuses on two pri
 
 **Ring Generation:** For gas giants that have rings, we model them using flattened toroidal shapes. The inner and outer radii of the rings are randomly generated within a specified range, and their color is derived from the same presets used for the planet. The ring's color bands are smoothly transitioned based on radial distance, ensuring they complement the planet's overall aesthetic.
 
-![](/assets/img/blog/planets.png){:.lead width="1638" height="526" loading="lazy"}
+![](/assets/img/blog/city/city/planets.png){:.lead width="1638" height="526" loading="lazy"}
 Figure 2: Examples of procedurally generated celestial bodies, showcasing a realistic icy rocky planet, a hazardous lava rocky planet, and a striking gas giant, from left to right.
 {:.figcaption}
 
@@ -79,6 +79,6 @@ Dynamic weather effects, like rain and snow, are introduced using a particle sys
 
 To give users creative control, we developed an intuitive interface that allows for extensive customization of both city and planet generation. For cityscapes, users can adjust building heights, window patterns, roof styles, and even the presence of LED screens with real-time feedback. Planet generation is equally flexible, with options to define terrain roughness, color schemes, cloud layers, and gas giant bands. This high level of customization ensures that each environment can be tailored to specific aesthetic and functional requirements, making the tool versatile for various applications, from game development to virtual simulations.
 
-![](/assets/img/blog/city-model.png){:.lead width="1980" height="1080" loading="lazy"}
+![](/assets/img/blog/city/city/city-model.png){:.lead width="1980" height="1080" loading="lazy"}
 Figure 3: The mesh for the city and planets.
 {:.figcaption}

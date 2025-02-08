@@ -6,6 +6,16 @@ layout: base
 <link rel="stylesheet" href="../../assets/css/applause-button.css" />
 <script src="../../assets/js/applause-button.js"></script>
 
+<link href="../../../assets/css/lightbox.css" rel="stylesheet">
+<script src="../../../assets/js/lightbox-plus-jquery.js"></script>
+
+<script>
+  lightbox.option({
+    'alwaysShowNavOnTouchDevices': true,
+    'wrapAround': true
+  })
+</script>
+
 {% assign version = jekyll.version | split:'.' %}
 {% assign major = version[0] | plus:0 %}
 {% assign minor = version[1] | plus:0 %}

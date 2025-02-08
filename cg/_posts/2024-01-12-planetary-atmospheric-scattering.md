@@ -3,9 +3,9 @@ layout: post
 title: Planetary Atmospheric Scattering
 description: >
   Atmospheric scattering is a complex process that occurs when sunlight interacts with particles in a planetary atmosphere, resulting in visually striking phenomena such as the blue sky and colorful sunsets.
-image: /assets/img/blog/space.png
+image: /assets/img/blog/as/space.png
 sitemap: false
-accent_image: /assets/img/blog/space.png
+accent_image: /assets/img/blog/as/space.png
 accent_color: '#4d5769'
 theme_color: '#4d5769'
 ---
@@ -21,7 +21,7 @@ _Due to time constraints, our implementation does not include the complete metho
 
 Atmospheric scattering primarily consists of two physical phenomena: Rayleigh and Mie scattering, which are the main contributors to the colors of our sky. Rayleigh scattering is an optical phenomenon predominantly responsible for clear blue skies and vibrant orange-red sunsets. As light passes through the air, it interacts with small molecules whose wavelengths are much shorter, resulting in wavelength-sensitive scattering. In contrast, Mie scattering takes place during overcast weather and creates the distinctive Tyndall effect. It occurs when the size of airborne particles, such as those found in fog, smoke, and dust, is approximately equal to or greater than the wavelength of light. Unlike Rayleigh scattering, Mie scattering does not exhibit wavelength sensitivity and has a limited capacity to alter the color of incoming light. A more detailed overview of atmospheric scattering is shown in Figure 1.
 
-![](/assets/img/blog/as-overview.png){:.lead width="1600" height="1200" loading="lazy"}
+![](/assets/img/blog/as/as-overview.png){:.lead width="1600" height="1200" loading="lazy"}
 
 Figure 1: An overview of atmospheric scattering. A: zero scattering. B: single scattering. C: multiple scattering. Solving for a physically accurate radiance of light $$L$$ reaching $$\mathbf{x}$$ from direction $$\mathbf{v}$$ when the sun is in direction $$\mathbf{s}$$ requires: D: light reflected at $$\mathbf{x}_0$$. E: transmittance $$T$$ results from absorption and out-scattered light. F: is the light scattered in direction $$-\mathbf{v}$$. G: light scattered towards $$\mathbf{x}$$ between $$\mathbf{x}_0$$ and $$\mathbf{x}$$, from any direction. Note that occlusion, like the mountain in the figure, can significantly affect the final calculated $$L$$. As a result, we account for occlusion in zero scattering but disregard it in other cases to minimize performance overhead.
 {:.figcaption}
@@ -104,7 +104,7 @@ where $$L_0$$ represents the attenuation value of direct sunlight $$L_{sun}$$ as
 
 The transmittance $$T$$ represents the proportion that remains unabsorbed or unattenuated after a beam of light travels from one point to another. By definition, $$T$$ depends only on the positions of the two points and is independent of terrain. Therefore, we can examine it under the assumption of a smooth planetary surface (i.e., all distances from the surface to the sphere's center are equal to $$R$$) when solving for $$T$$. Upon determining $$T$$, we store it in a precomputed texture that will be accessed during the rendering process.
 
-![](/assets/img/blog/as-detail.png){:.lead width="1900" height="520" loading="lazy"}
+![](/assets/img/blog/as/as-detail.png){:.lead width="1900" height="520" loading="lazy"}
 
 Figure 2: Details about transmittance, texture mapping, and single scattering. (a): the transmittance between $$p$$ and $$q$$. (b): mapping between $$(r,\mu)$$ and the texture coordinates $$(u,v)$$. (c): the single scattered radiance at $$p$$ after the scattering event at $$q$$.
 {:.figcaption}
@@ -208,7 +208,7 @@ The ground irradiance look-up is relatively straightforward, as it can be accomp
 
 After implementing the methodology outlined above, we are able to precompute all necessary Look-Up Tables (LUTs) for real-time rendering. These LUTs appear as follows:
 
-![](/assets/img/blog/as-luts.png){:.lead width="1500" height="400" loading="lazy"}
+![](/assets/img/blog/as/as-luts.png){:.lead width="1500" height="400" loading="lazy"}
 
 Figure 3: Look-up tables/textures. (a): The 2D transmittance texture. (b): The 4D single scattering texture. (c): The 4D scattering texture that combines all scattering orders (4 scattering orders in this case). (d) The 2D ground irradiance texture.
 {:.figcaption}
@@ -217,7 +217,7 @@ Figure 3: Look-up tables/textures. (a): The 2D transmittance texture. (b): The 4
 
 We have developed two distinct engines to showcase the outcomes of our project: a command-line-based engine and a graphical user interface (GUI) based engine. The first engine, the command-line-based variant, is capable of generating a two-dimensional image of a predefined scene in real-time, with users having the ability to customize various elements such as camera angles and positioning. The second engine, utilizing a graphical interface, offers users an enhanced level of control over the scene, including adjustments to sun position, color balance, and even vertex and fragment shaders modifications within the engine. These features enable users to manipulate a range of aspects, creating a more immersive and interactive experience. Both engine utilizes precomputed LUTs from the atmosphere model we created.
 
-![](/assets/img/blog/as-engine.png){:.lead width="2560" height="1440" loading="lazy"}
+![](/assets/img/blog/as/as-engine.png){:.lead width="2560" height="1440" loading="lazy"}
 Figure 4: GUI based engine.
 {:.figcaption}
 
@@ -225,7 +225,7 @@ All the renderings are provided by the CPU renderer, which samples the entire sp
 
 Precomputation takes about 200 seconds to generate all the LUTs in 20 threads with fourth order multiple scattering. Once generated, the LUTs are simply copied to memory and rendered immediately. The GPU renderer can read half precision LUTs and render the atmosphere at more than 144 frames per second, and can adjust the camera and the position of the sun in real time.
 
-![](/assets/img/blog/as-results.png){:.lead width="1900" height="350" loading="lazy"}
+![](/assets/img/blog/as/as-results.png){:.lead width="1900" height="350" loading="lazy"}
 
 Figure 5: Planetary atmospheric scattering results from different camera angles and positions. (a): A dawn scene from the planetary surface radiance. (b) A sunrise scene from the planetary surface. (c) An outer space scene that showcases planetary atmospheric scattering on a larger scale.
 {:.figcaption}
