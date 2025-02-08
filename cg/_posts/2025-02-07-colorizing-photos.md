@@ -2,7 +2,7 @@
 layout: post  
 title: Reconstructing Century-Old Color Photos  
 description: >  
-  Sergei Mikhailovich Prokudin-Gorskii pioneered early color photography by capturing three-filtered monochrome images on glass plates. In this post, I explore how modern image processing techniques—such as multi-scale alignment, feature-based matching, and affine transformations—can automatically restore these historical images with minimal artifacts.  
+  Sergei Mikhailovich Prokudin-Gorskii pioneered early color photography by capturing three-filtered monochrome images on glass plates. Modern image processing techniques can automatically restore these historical images with minimal artifacts.  
 image: /assets/img/blog/pg-photo/cover.jpg  
 sitemap: false  
 accent_image: /assets/img/blog/pg-photo/cover.jpg  
