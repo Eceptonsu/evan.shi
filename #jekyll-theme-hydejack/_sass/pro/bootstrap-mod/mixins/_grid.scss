@@ -61,8 +61,8 @@
     // do not appear to require this.
     max-width: percentage($size / $columns);
   } @else {
-    flex: 0 0 percentage(calc($size / $columns));
-    max-width: percentage(calc($size / $columns));
+    flex: 0 0 calc(#{$size / $columns} * 100%);
+    max-width: calc(#{$size / $columns} * 100%);
   }
 }
 
