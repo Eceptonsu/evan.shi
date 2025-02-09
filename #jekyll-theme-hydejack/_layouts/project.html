@@ -27,8 +27,6 @@ layout: base
 {% assign proj_format = site.data.strings.date_formats.project | default:"%Y" %}
 {% assign from_to_separator = strings.from_to_separator | default:strings.resume.from_to_separator | default:"–" %}
 
-{% assign theme_color = include.theme_color %}
-
 <article
   id="project"
   class="page mb6"
@@ -89,12 +87,13 @@ layout: base
   </header>
 
   {{ content }}
-
 </article>
 
 <div class="applause-button-container" style="display: flex; justify-content: center; align-items: center;">
   <applause-button style="width: 100px; height: 100px;" color = "{{ page.theme_color }}"/>
 </div>
+
+{% include components/dingbat.html %}
 
 {% assign addons = page.addons | default:site.hydejack.project_addons %}
 {% unless addons %}{% assign addons = "about,newsletter,other" | split:"," %}{% endunless %}
