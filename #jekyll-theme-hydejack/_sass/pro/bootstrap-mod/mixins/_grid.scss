@@ -67,11 +67,11 @@
 }
 
 @mixin make-col-offset($size, $columns: $grid-columns) {
-  $num: null;
-  @if $gh-pages-compat {
-    $num:     ($size / $columns);
+  @if $size == 0 {
+    margin-left: 0;
+  } @else if $gh-pages-compat {
+    margin-left: percentage($size / $columns);
   } @else {
-    $num: calc($size / $columns);
+    margin-left: calc(#{$size / $columns} * 100%);
   }
-  margin-left: if($num == 0, 0, percentage($num));
 }
