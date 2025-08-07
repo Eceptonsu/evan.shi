@@ -99,4 +99,4 @@ The evaluation harness logs average response time (~620 ms on an RTX 4090) and B
 
 ## Closing Thoughts
 
-My time at AgentLive convinced me that RAG is not just an academic trick; it's the missing piece that transforms "chatty" NPC prototypes into production-ready features. The stack is still evolving fast-yet with the right retrieval layer, even a small indie can punch above its weight and craft worlds that remember.
+My time at AgentLive showed me how powerful RAG can be when used thoughtfully in game development. It grounds generative models in structured knowledge, reduces hallucinations, and helps bring dynamic NPCs and evolving game worlds to life. But RAG isn't a magic fix-it depends heavily on clean data, good retrieval design, and tight integration with the game's logic. There are still real challenges, from retrieval quality to creative control. And while the tech is promising, especially for dialogue and lore consistency, it still requires human oversight to ensure narrative depth and tone. RAG is a tool-not a replacement for good design. But when used well, it can make even small games feel alive and reactive in ways we've only just begun to explore.
