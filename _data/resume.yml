@@ -3,17 +3,15 @@
 # See also: <https://jsonresume.org/>.
 basics:
   name: "Evan (Bowen) Shi"
-  label: "CS Grad Student"
+  label: "SDE @ 2K | MSCS @ Yale"
   picture: "/assets/img/general/evan_photo.jpg"
   website: "https://evanshi.github.io"
   summary: >
-    I completed my BS in Computer Science & Game Simulation Art Science at Rensselaer Polytechnic Institute 
-    and am now pursuing an MS in Computer Science at Yale University. This educational journey has equipped me 
-    with a solid programming and game development foundation. I am proficient in many programming languages, 
-    including C, C++, and Python. My experience in game engines like Unity and Unreal has further expanded 
-    my technical horizon, enabling me to bring imaginative game concepts to life. Additionally, 
-    I am actively involved in the rapidly evolving field of Natural Language Processing, 
-    contributing to research initiatives that delve into AI creativity.
+    I am a recent graduate in Computer Science from Yale University, Class of 2025, with a strong foundation in AI, 
+    machine learning, and game development, built upon a dual major from RPI. My experience spans across optimizing large language models 
+    and developing machine learning-driven RAG applications during my internship, enhancing open-source tools through full-stack development, 
+    and contributing to NLP research at both RPI and Yale. With a deep interest in applying advanced technologies to solve real-world problems, 
+    I am eager to bring my technical expertise and innovative thinking to new challenges.
   location:
     address: ""
     postalCode: ""
@@ -29,11 +27,19 @@ basics:
       url: "https://www.linkedin.com/in/evan-shi-cs/"
 
 work:
+  - company: "2K Games"
+    position: "Software Engineer"
+    website: "https://2k.com/"
+    startDate: "2025-07-01"
+    endDate: ""
+    highlights:
+      - "Graduate Engineering Program (3er)"
+
   - company: "Yale University"
     position: "Graduate Teaching Fellow"
     website: ""
     startDate: "2023-08-01"
-    endDate: ""
+    endDate: "2025-05-01"
     highlights:
       - "Conduct 4-6 office hours per week to provide targeted academic support and guidance to students for CPSC 223: Data Structures and Programming Techniques"
       - "Supervise 20+ undergraduate learning assistants (ULAs) and manage course logistics, ensuring smooth coordination"
@@ -112,8 +118,7 @@ education:
     area: "Computer Science"
     studyType: "Master"
     startDate: "2023-08-01"
-    endDate: ""
-    gpa: "4.00"
+    endDate: "2025-05-01"
 
   - institution: "Rensselaer Polytechnic Institute"
     area: "Computer Science & Game Simulation Art Science"
