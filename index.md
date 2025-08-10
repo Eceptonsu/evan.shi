@@ -4,7 +4,7 @@ title:  A Little Bit About Me...
 cover:  true
 ---
 
-Hello, and welcome! My name is **Evan (Bowen) Shi**. I've recently graduated from **Rensselaer Polytechnic Institute**, earning dual degrees in Computer Science and Game Simulation Art Science. Now, I am pursuing a master's degree in Computer Science in a two-year program at **Yale University**. This site is my open book where I express myself and share my interest. As you journey through my website, you'll discover more about my academic path, professional milestones, and passion that propels me forward in this ever-evolving field.
+Hello, and welcome! My name is **Evan (Bowen) Shi**. I earned my B.S. in Computer Science & Game Simulation Art and Science from **Rensselaer Polytechnic Institute** and my M.S. in Computer Science from **Yale University**. I currently work in the game industry at 2K. This site is my open book where I express myself and share my interest. As you journey through my website, you'll discover more about my academic path, professional milestones, and passion that propels me forward in this ever-evolving field.
 
 > "Be productive, not busy."
 > 

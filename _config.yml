@@ -53,8 +53,10 @@ menu:
     url:               /blog/
   - title:             Projects
     url:               /projects/
+  - title:             Gallery
+    url:               /gallery/ 
   - title:             Résumé
-    url:               /resume/
+    url:               /resume/  
 
 # Add links to the footer.
 # Typically you'll want to link to your cookie- or privacy policy (if appliable), etc..
@@ -65,13 +67,13 @@ legal:
     url:               /LEGAL/
 
 # This text will appear in a `<small>` tag in the footer of every page.
-copyright:             © 2024 Evan Shi. All rights reserved.
+copyright:             © 2025 Evan Shi. All rights reserved.
 
 # Format of the permalinks
 permalink:             /blog/:categories/:year-:month-:day-:title/
 
 # Pagination configuration (used by the `blog` layout)
-paginate:              10
+paginate:              5
 paginate_path:         /blog/:num/
 
 
