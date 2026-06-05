@@ -61,8 +61,8 @@
     // do not appear to require this.
     max-width: percentage($size / $columns);
   } @else {
-    flex: 0 0 calc(#{$size / $columns} * 100%);
-    max-width: calc(#{$size / $columns} * 100%);
+    flex: 0 0 calc(#{$size} / #{$columns} * 100%);
+    max-width: calc(#{$size} / #{$columns} * 100%);
   }
 }
 
@@ -72,6 +72,6 @@
   } @else if $gh-pages-compat {
     margin-left: percentage($size / $columns);
   } @else {
-    margin-left: calc(#{$size / $columns} * 100%);
+    margin-left: calc(#{$size} / #{$columns} * 100%);
   }
 }

@@ -15,6 +15,234 @@
 <!--
 Code for integrating CloudFlare's email protection with Hydejack's single page app loading.
 -->
+<div class="site-loader" id="site-loader" role="status" aria-live="polite" aria-label="Loading website">
+  <div class="site-loader__dissolve" aria-hidden="true"></div>
+  <div class="site-loader__inner" aria-hidden="true">
+    <div class="site-loader__mark">Evan Shi</div>
+    <div class="site-loader__line"></div>
+    <p class="site-loader__text">Loading</p>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var loader = document.getElementById('site-loader');
+    var startedAt = Date.now();
+    var minimumDuration = 2000;
+    var dissolveDuration = 2400;
+
+    function buildDissolveGrid() {
+      var grid = loader && loader.querySelector('.site-loader__dissolve');
+      if (!grid || grid.children.length) return;
+
+      var columns = 12;
+      var rows = 8;
+      var fragment = document.createDocumentFragment();
+
+      grid.style.setProperty('--loader-columns', columns);
+      grid.style.setProperty('--loader-rows', rows);
+
+      var cells = [];
+
+      for (var row = 0; row < rows; row += 1) {
+        for (var column = 0; column < columns; column += 1) {
+          cells.push({ row: row, column: column });
+        }
+      }
+
+      for (var index = cells.length - 1; index > 0; index -= 1) {
+        var swapIndex = Math.floor(Math.random() * (index + 1));
+        var item = cells[index];
+        cells[index] = cells[swapIndex];
+        cells[swapIndex] = item;
+      }
+
+      cells.forEach(function (position, index) {
+        var cell = document.createElement('span');
+        var checkerDelay = (position.row + position.column) % 2 ? 45 : 0;
+        var randomDelay = index * 9 + Math.floor(Math.random() * 60);
+
+        cell.style.gridColumn = position.column + 1;
+        cell.style.gridRow = position.row + 1;
+        cell.style.setProperty('--cell-delay', checkerDelay + randomDelay + 'ms');
+        fragment.appendChild(cell);
+      });
+
+      grid.appendChild(fragment);
+    }
+
+    function hideLoader() {
+      if (!loader) {
+        document.documentElement.classList.add('site-loaded');
+        document.body.classList.add('site-loaded');
+        return;
+      }
+
+      buildDissolveGrid();
+      document.documentElement.classList.add('site-loaded');
+      document.body.classList.add('site-loaded');
+      loader.classList.add('is-hidden');
+
+      setTimeout(function () {
+        if (loader.parentNode) loader.parentNode.removeChild(loader);
+      }, dissolveDuration);
+    }
+
+    function finishLoading() {
+      var remaining = Math.max(minimumDuration - (Date.now() - startedAt), 0);
+      setTimeout(hideLoader, remaining);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', finishLoading, { once: true });
+    } else {
+      finishLoading();
+    }
+  }());
+</script>
+
+<script>
+  (function () {
+    function attachMagneticPills() {
+      var navItems = document.querySelectorAll([
+        '.sidebar-about > a.sidebar-title',
+        '.sidebar-nav-item',
+        '.sidebar-social a',
+        '.layout-welcome .page p a[href]'
+      ].join(', '));
+
+      Array.prototype.forEach.call(navItems, function (item) {
+        if (item.getAttribute('data-magnetic-ready') === 'true') return;
+
+        item.setAttribute('data-magnetic-ready', 'true');
+
+        item.addEventListener('pointermove', function (event) {
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+          var rect = item.getBoundingClientRect();
+          var x = ((event.clientX - rect.left) / rect.width - 0.5) * 10;
+          var y = ((event.clientY - rect.top) / rect.height - 0.5) * 7;
+
+          item.style.setProperty('--mag-x', x.toFixed(2) + 'px');
+          item.style.setProperty('--mag-y', y.toFixed(2) + 'px');
+        }, { passive: true });
+
+        item.addEventListener('pointerleave', function () {
+          item.style.setProperty('--mag-x', '0px');
+          item.style.setProperty('--mag-y', '0px');
+        });
+      });
+    }
+
+    function ensureLightbox() {
+      if (!document.querySelector('[data-lightbox]')) return;
+
+      if (!document.querySelector('link[href*="assets/css/lightbox.css"]')) {
+        var lightboxStyles = document.createElement('link');
+        lightboxStyles.rel = 'stylesheet';
+        lightboxStyles.href = '/assets/css/lightbox.css';
+        document.head.appendChild(lightboxStyles);
+      }
+
+      function configureLightbox() {
+        if (!window.lightbox) return;
+
+        window.lightbox.option({
+          resizeDuration: 200,
+          wrapAround: true,
+          fadeDuration: 180,
+          imageFadeDuration: 180
+        });
+      }
+
+      if (window.lightbox) {
+        configureLightbox();
+        return;
+      }
+
+      if (!document.querySelector('script[src*="assets/js/lightbox-plus-jquery.js"]')) {
+        var lightboxScript = document.createElement('script');
+        lightboxScript.src = '/assets/js/lightbox-plus-jquery.js';
+        lightboxScript.onload = configureLightbox;
+        document.body.appendChild(lightboxScript);
+      }
+    }
+
+    function attachGalleryLayoutControls() {
+      var galleries = document.querySelectorAll('[data-gallery-grid]');
+
+      Array.prototype.forEach.call(galleries, function (gallery) {
+        var controls = document.querySelectorAll('[data-gallery-columns]');
+        if (!controls.length) return;
+
+        function setColumns(columns) {
+          gallery.setAttribute('data-gallery-current', columns);
+          gallery.style.setProperty('--columns', columns);
+
+          Array.prototype.forEach.call(controls, function (control) {
+            var isSelected = control.getAttribute('data-gallery-columns') === columns;
+            control.classList.toggle('is-active', isSelected);
+            control.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+          });
+        }
+
+        if (gallery.getAttribute('data-gallery-ready') !== 'true') {
+          Array.prototype.forEach.call(controls, function (control) {
+            control.addEventListener('click', function () {
+              setColumns(control.getAttribute('data-gallery-columns'));
+            });
+          });
+
+          gallery.setAttribute('data-gallery-ready', 'true');
+        }
+
+        setColumns(gallery.getAttribute('data-gallery-current') || gallery.getAttribute('data-gallery-default') || '2');
+      });
+    }
+
+    function attachGalleryCaptions() {
+      var bubble = document.querySelector('[data-gallery-caption]');
+      if (!bubble) return;
+
+      var items = document.querySelectorAll('[data-caption]');
+
+      function showCaption(item) {
+        var caption = item.getAttribute('data-caption');
+        if (!caption) return;
+
+        bubble.textContent = caption;
+        bubble.classList.add('is-visible');
+        bubble.setAttribute('aria-hidden', 'false');
+      }
+
+      function hideCaption() {
+        bubble.classList.remove('is-visible');
+        bubble.setAttribute('aria-hidden', 'true');
+      }
+
+      Array.prototype.forEach.call(items, function (item) {
+        if (item.getAttribute('data-caption-ready') === 'true') return;
+
+        item.setAttribute('data-caption-ready', 'true');
+        item.addEventListener('pointerenter', function () { showCaption(item); }, { passive: true });
+        item.addEventListener('focus', function () { showCaption(item); });
+        item.addEventListener('pointerleave', hideCaption, { passive: true });
+        item.addEventListener('blur', hideCaption);
+      });
+    }
+
+    function refreshEnhancements() {
+      attachMagneticPills();
+      ensureLightbox();
+      attachGalleryLayoutControls();
+      attachGalleryCaptions();
+    }
+
+    refreshEnhancements();
+    document.getElementById('_pushState').addEventListener('hy-push-state-after', refreshEnhancements);
+  }());
+</script>
+
 <script>
   document.getElementById('_pushState').addEventListener('hy-push-state-after', function (e) {
     function e(e){

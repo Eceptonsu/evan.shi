@@ -1,1 +1,19 @@
 <!-- Add HTML tags here to be included in the head -->
+<style id="site-loader-critical">
+  html:not(.site-loaded),
+  html:not(.site-loaded) body {
+    background: #111;
+  }
+
+  html:not(.site-loaded)::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646;
+    background: #111;
+  }
+
+  html:not(.site-loaded) #_pushState {
+    visibility: hidden;
+  }
+</style>
