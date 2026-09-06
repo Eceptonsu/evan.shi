@@ -52,7 +52,7 @@ Code for integrating CloudFlare's email protection with Hydejack's single page a
           if (!loader.parentNode) return;
           if (!openingStarted) openingStarted = now;
           var progress = Math.min(Math.max((now - openingStarted - 100) / 1400, 0), 1);
-          // Accelerate out of the title, then gently settle beyond the corners.
+          /* Accelerate out of the title, then gently settle beyond the corners. */
           var eased = progress < .5
             ? 4 * progress * progress * progress
             : 1 - Math.pow(-2 * progress + 2, 3) / 2;
@@ -69,7 +69,7 @@ Code for integrating CloudFlare's email protection with Hydejack's single page a
       loader.addEventListener('transitionend', function (event) {
         if (event.target === loader && event.propertyName === 'opacity') removeLoader();
       });
-      // Also clean up if transitions are disabled or the tab is in the background.
+      /* Also clean up if transitions are disabled or the tab is in the background. */
       setTimeout(removeLoader, reducedMotion.matches ? 160 : 1700);
     }
 

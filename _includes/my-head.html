@@ -1,10 +1,15 @@
 <!-- Add HTML tags here to be included in the head -->
+<!--
+  Keep pages discoverable in Google Search, but prevent page content from being
+  shown as a snippet or used as direct input for AI Overviews and AI Mode.
+-->
+<meta name="googlebot" content="nosnippet">
 <link rel="stylesheet" href="{{ '/assets/css/gallery-earth.css' | relative_url }}">
 <script>
   (function () {
     var root = document.documentElement;
     root.classList.add('site-entering', 'site-loading');
-    // Leave the website usable even if the entrance script fails to run.
+    /* Leave the website usable even if the entrance script fails to run. */
     setTimeout(function () {
       root.classList.remove('site-entering', 'site-loading');
       root.classList.add('site-loaded');

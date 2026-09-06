@@ -1,0 +1,4 @@
+User-agent: Google-Extended
+Disallow: /
+
+Sitemap: /sitemap.xml
