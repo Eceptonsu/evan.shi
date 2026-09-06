@@ -1,11 +1,23 @@
 <!-- Add HTML tags here to be included in the head -->
+<link rel="stylesheet" href="{{ '/assets/css/gallery-earth.css' | relative_url }}">
+<script>
+  (function () {
+    var root = document.documentElement;
+    root.classList.add('site-entering', 'site-loading');
+    // Leave the website usable even if the entrance script fails to run.
+    setTimeout(function () {
+      root.classList.remove('site-entering', 'site-loading');
+      root.classList.add('site-loaded');
+    }, 5000);
+  }());
+</script>
 <style id="site-loader-critical">
-  html:not(.site-loaded),
-  html:not(.site-loaded) body {
+  html.site-loading,
+  html.site-loading body {
     background: #111;
   }
 
-  html:not(.site-loaded)::before {
+  html.site-loading::before {
     content: "";
     position: fixed;
     inset: 0;
@@ -13,7 +25,7 @@
     background: #111;
   }
 
-  html:not(.site-loaded) #_pushState {
+  html.site-loading #_pushState {
     visibility: hidden;
   }
 </style>

@@ -1,3 +1,5 @@
+<script src="{{ '/assets/js/gallery-earth.js' | relative_url }}" defer></script>
+
 <!-- <script>
   document.querySelector('hy-push-state').setAttribute('prefetch', '');
 
@@ -16,11 +18,9 @@
 Code for integrating CloudFlare's email protection with Hydejack's single page app loading.
 -->
 <div class="site-loader" id="site-loader" role="status" aria-live="polite" aria-label="Loading website">
-  <div class="site-loader__dissolve" aria-hidden="true"></div>
   <div class="site-loader__inner" aria-hidden="true">
     <div class="site-loader__mark">Evan Shi</div>
     <div class="site-loader__line"></div>
-    <p class="site-loader__text">Loading</p>
   </div>
 </div>
 
@@ -28,67 +28,53 @@ Code for integrating CloudFlare's email protection with Hydejack's single page a
   (function () {
     var loader = document.getElementById('site-loader');
     var startedAt = Date.now();
-    var minimumDuration = 2000;
-    var dissolveDuration = 2400;
+    var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var openingFrame;
 
-    function buildDissolveGrid() {
-      var grid = loader && loader.querySelector('.site-loader__dissolve');
-      if (!grid || grid.children.length) return;
-
-      var columns = 12;
-      var rows = 8;
-      var fragment = document.createDocumentFragment();
-
-      grid.style.setProperty('--loader-columns', columns);
-      grid.style.setProperty('--loader-rows', rows);
-
-      var cells = [];
-
-      for (var row = 0; row < rows; row += 1) {
-        for (var column = 0; column < columns; column += 1) {
-          cells.push({ row: row, column: column });
-        }
-      }
-
-      for (var index = cells.length - 1; index > 0; index -= 1) {
-        var swapIndex = Math.floor(Math.random() * (index + 1));
-        var item = cells[index];
-        cells[index] = cells[swapIndex];
-        cells[swapIndex] = item;
-      }
-
-      cells.forEach(function (position, index) {
-        var cell = document.createElement('span');
-        var checkerDelay = (position.row + position.column) % 2 ? 45 : 0;
-        var randomDelay = index * 9 + Math.floor(Math.random() * 60);
-
-        cell.style.gridColumn = position.column + 1;
-        cell.style.gridRow = position.row + 1;
-        cell.style.setProperty('--cell-delay', checkerDelay + randomDelay + 'ms');
-        fragment.appendChild(cell);
-      });
-
-      grid.appendChild(fragment);
+    function removeLoader() {
+      cancelAnimationFrame(openingFrame);
+      if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
+      document.documentElement.classList.remove('site-entering');
     }
 
     function hideLoader() {
-      if (!loader) {
-        document.documentElement.classList.add('site-loaded');
-        document.body.classList.add('site-loaded');
-        return;
-      }
-
-      buildDissolveGrid();
+      document.documentElement.classList.remove('site-loading');
       document.documentElement.classList.add('site-loaded');
       document.body.classList.add('site-loaded');
-      loader.classList.add('is-hidden');
+      if (!loader) return removeLoader();
 
-      setTimeout(function () {
-        if (loader.parentNode) loader.parentNode.removeChild(loader);
-      }, dissolveDuration);
+      loader.classList.add('is-hidden');
+      loader.setAttribute('aria-hidden', 'true');
+
+      if (!reducedMotion.matches) {
+        var openingStarted;
+        function openAperture(now) {
+          if (!loader.parentNode) return;
+          if (!openingStarted) openingStarted = now;
+          var progress = Math.min(Math.max((now - openingStarted - 100) / 1400, 0), 1);
+          // Accelerate out of the title, then gently settle beyond the corners.
+          var eased = progress < .5
+            ? 4 * progress * progress * progress
+            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+          var reach = Math.hypot(window.innerWidth * .5, window.innerHeight * .52);
+          var feather = Math.min(window.innerWidth, window.innerHeight) * .22;
+          var radius = eased * (reach + feather);
+          loader.style.setProperty('--opening-inner', Math.max(0, radius - feather) + 'px');
+          loader.style.setProperty('--opening-outer', radius + 'px');
+          if (progress < 1) openingFrame = requestAnimationFrame(openAperture);
+        }
+        openingFrame = requestAnimationFrame(openAperture);
+      }
+
+      loader.addEventListener('transitionend', function (event) {
+        if (event.target === loader && event.propertyName === 'opacity') removeLoader();
+      });
+      // Also clean up if transitions are disabled or the tab is in the background.
+      setTimeout(removeLoader, reducedMotion.matches ? 160 : 1700);
     }
 
     function finishLoading() {
+      var minimumDuration = reducedMotion.matches ? 0 : 720;
       var remaining = Math.max(minimumDuration - (Date.now() - startedAt), 0);
       setTimeout(hideLoader, remaining);
     }
