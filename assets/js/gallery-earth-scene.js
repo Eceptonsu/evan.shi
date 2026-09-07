@@ -72,6 +72,31 @@ export async function createEarth(root, photos) {
   canvas.setAttribute('aria-label', 'Interactive Earth. Drag to rotate freely, scroll or pinch to zoom. Use arrow keys to rotate, plus or minus to zoom, Home to reset. Choose a photograph below to find any location.');
   stage.append(canvas);
 
+  // Decorative space stays behind the WebGL surface and never captures input.
+  const sky = document.createElement('div');
+  sky.className = 'gallery-earth__sky';
+  sky.setAttribute('aria-hidden', 'true');
+  let skySeed = 4271;
+  const random = () => {
+    skySeed = (skySeed * 16807) % 2147483647;
+    return (skySeed - 1) / 2147483646;
+  };
+  for (let index = 0; index < 48; index++) {
+    const star = document.createElement('i');
+    star.className = 'gallery-earth__star';
+    star.style.left = `${3 + random() * 94}%`;
+    star.style.top = `${3 + random() * 94}%`;
+    star.style.setProperty('--star-size', `${1.3 + random() * 1.4}px`);
+    star.style.setProperty('--star-duration', `${1.8 + random() * 2.4}s`);
+    star.style.setProperty('--star-delay', `${-random() * 15}s`);
+    star.style.setProperty('--star-drift', `${16 + random() * 12}s`);
+    sky.append(star);
+  }
+  const moon = document.createElement('span');
+  moon.className = 'gallery-earth__moon';
+  sky.append(moon);
+  stage.prepend(sky);
+
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(43, 1, 0.1, 30);
   camera.position.copy(positionAt(28, -112).multiplyScalar(3.4));
@@ -228,6 +253,7 @@ export async function createEarth(root, photos) {
     frame = requestAnimationFrame(tick);
   }
   function wake() {
+    stage.classList.toggle('is-sky-active', active && intersecting && !document.hidden && !disposed);
     dirty = true;
     previousTime = 0;
     if (!frame && active && intersecting && !document.hidden && !disposed) frame = requestAnimationFrame(tick);
@@ -297,6 +323,7 @@ export async function createEarth(root, photos) {
   on(canvas, 'webglcontextlost', event => {
     event.preventDefault();
     active = false;
+    stage.classList.remove('is-sky-active');
     status.hidden = false;
     status.textContent = 'The Earth view was interrupted. Reload this page to try again, or switch to Grid to see your photos.';
   });
@@ -308,7 +335,7 @@ export async function createEarth(root, photos) {
   resize();
 
   return {
-    setActive(value) { active = value; controls.enabled = value; if (value) resize(); else { cancelAnimationFrame(frame); frame = 0; } },
+    setActive(value) { active = value; controls.enabled = value; if (value) resize(); else { stage.classList.remove('is-sky-active'); cancelAnimationFrame(frame); frame = 0; } },
     dispose() {
       disposed = true;
       cancelAnimationFrame(frame);
@@ -322,7 +349,8 @@ export async function createEarth(root, photos) {
       texture.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
-      canvas.remove(); overlay.remove(); svg.remove();
+      stage.classList.remove('is-sky-active');
+      sky.remove(); canvas.remove(); overlay.remove(); svg.remove();
     }
   };
 }

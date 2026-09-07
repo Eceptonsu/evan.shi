@@ -4,6 +4,10 @@
   shown as a snippet or used as direct input for AI Overviews and AI Mode.
 -->
 <meta name="googlebot" content="nosnippet">
+<link rel="stylesheet" href="{{ '/assets/css/home-background.css' | relative_url }}">
+<script src="{{ '/assets/js/home-background.js' | relative_url }}"
+  data-video-root="{{ '/assets/video/' | relative_url }}"
+  data-scenes="{{ site.data.home_backgrounds | jsonify | escape }}" defer></script>
 <link rel="stylesheet" href="{{ '/assets/css/gallery-earth.css' | relative_url }}">
 <script>
   (function () {

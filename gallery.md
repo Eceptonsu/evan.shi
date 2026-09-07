@@ -40,7 +40,6 @@ title: Gallery
     <select id="earth-place" data-earth-place><option value="">Choose a place…</option></select>
     <button type="button" data-earth-open disabled>View photo ↗</button>
   </div>
-  <p class="gallery-earth__note">Pins show the named place or region, not exact camera coordinates. Alaska is approximate.</p>
 </section>
 
 <aside class="gallery-caption-bubble" data-gallery-caption aria-hidden="true"></aside>

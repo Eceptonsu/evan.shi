@@ -87,8 +87,10 @@ theme: jekyll-theme-hydejack
 # Customizaton
 # ----------------------------------------------------------------------------------------
  
-# Sidebar image and theme color of the site.
-accent_image:          /assets/img/general/background.jpg
+# Solid fallback behind the animated home-page backgrounds.
+accent_image:
+  background:          rgb(25,55,71)
+  overlay:             false
 accent_color:          rgb(79,177,186)
 
 # This is used for the `theme-color` meta tag,
@@ -406,22 +408,16 @@ jekyll_compose:
       description: > 
         A short ~160 character description of your post for search engines,
         social media previews, etc.
-      image:
-        path: /assets/img/general/background.jpg
     posts:
       layout: post
       description: > 
         A short ~160 character description of your post for search engines,
         social media previews, etc.
-      image:
-        path: /assets/img/general/background.jpg
     projects:
       layout: project
       description: > 
         A short ~160 character description of your post for search engines,
         social media previews, etc.
-      image:
-        path: /assets/img/general/background.jpg
       links:
         - title: Project Link
           url: https://example.com

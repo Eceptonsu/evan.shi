@@ -7,7 +7,7 @@ basics:
   picture: "/assets/img/general/evan_photo.jpg"
   website: "https://evanshi.github.io"
   summary: >
-    I am a recent graduate in Computer Science from Yale University, Class of 2025, with a strong foundation in AI, 
+    I am a graduate in Computer Science from Yale University, Class of 2025, with a strong foundation in AI, 
     machine learning, and game development, built upon a dual major from RPI. My experience spans across optimizing large language models 
     and developing machine learning-driven RAG applications during my internship, enhancing open-source tools through full-stack development, 
     and contributing to NLP research at both RPI and Yale. With a deep interest in applying advanced technologies to solve real-world problems, 
@@ -119,6 +119,7 @@ education:
     studyType: "Master"
     startDate: "2023-08-01"
     endDate: "2025-05-01"
+    gpa: "4.00"
 
   - institution: "Rensselaer Polytechnic Institute"
     area: "Computer Science & Game Simulation Art Science"

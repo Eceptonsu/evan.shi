@@ -1,0 +1,11 @@
+# Daily order, starting September 7, 2026 (America/Los_Angeles).
+# Keep filenames local to assets/video; only the selected scene is downloaded.
+- id: fjord
+  label: Blue fjord and mist
+  file: blue-fjord-mist.mp4
+- id: alpine
+  label: Blue alpine mountains
+  file: mountain-clouds-blue.mp4
+- id: mist
+  label: Fog-covered mountain peaks
+  file: mountain-clouds.mp4
