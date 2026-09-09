@@ -17,8 +17,7 @@ links:
   - title: itch.io
     url: https://tygentry.itch.io/finding-flora
 accent_color: '#6a8222'
-accent_image:
-  background: '#6a8222'
+accent_image: /assets/img/projects/finding-flora.jpg
 theme_color: '#6a8222'
 sitemap: false
 ---

@@ -16,8 +16,7 @@ links:
   - title: itch.io
     url: https://sorelup.itch.io/troubledseas
 accent_color: '#2f6887'
-accent_image:
-  background: '#2f6887'
+accent_image: /assets/img/projects/troubled-seas.jpg
 theme_color: '#2f6887'
 sitemap: false
 ---

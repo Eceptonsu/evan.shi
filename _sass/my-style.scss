@@ -69,6 +69,7 @@
 .gallery--media > a,
 .gallery--media .gallery-item {
   position: relative;
+  isolation: isolate;
   display: block;
   overflow: hidden;
   border-radius: 8px;
@@ -190,6 +191,39 @@
 .gallery-item--youtube::after {
   content: none !important;
 }
+
+// Keep the consent notice above page-level media controls and overlays.
+#_cookies-banner {
+  z-index: 10;
+  background: var(--body-bg);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+
+  > .content {
+    max-height: none;
+  }
+
+  .nav-btn-bar {
+    height: auto;
+    min-height: 5rem;
+    padding: .75rem 1rem;
+  }
+
+  .faded {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem 1rem;
+    opacity: 1;
+  }
+
+  #_cookies-ok {
+    flex: none;
+    margin: 0;
+  }
+}
+
+body { padding-bottom: var(--cookie-banner-height, 0px); }
+html { scroll-padding-bottom: calc(var(--cookie-banner-height, 0px) + 1rem); }
 
 .gallery-item__play {
   position: absolute;

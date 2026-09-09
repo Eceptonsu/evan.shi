@@ -2,10 +2,13 @@
 # Keep filenames local to assets/video; only the selected scene is downloaded.
 - id: fjord
   label: Blue fjord and mist
-  file: blue-fjord-mist.mp4
+  file: blue-fjord-mist-720p.mp4
+  poster: blue-fjord-mist.jpg
 - id: alpine
   label: Blue alpine mountains
   file: mountain-clouds-blue.mp4
+  poster: mountain-clouds-blue.jpg
 - id: mist
   label: Fog-covered mountain peaks
   file: mountain-clouds.mp4
+  poster: mountain-clouds.jpg

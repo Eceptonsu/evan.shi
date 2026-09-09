@@ -16,8 +16,7 @@ links:
   - title: Submitty
     url: https://submitty.org/index/overview
 accent_color: '#376294'
-accent_image:
-  background: '#376294'
+accent_image: /assets/img/projects/submitty_logo.png
 theme_color: '#376294'
 sitemap: false
 ---

@@ -5,7 +5,11 @@
 -->
 <meta name="googlebot" content="nosnippet">
 <link rel="stylesheet" href="{{ '/assets/css/home-background.css' | relative_url }}">
+<script src="{{ '/assets/js/cookie-banner-layout.js' | relative_url }}" defer></script>
 <script src="{{ '/assets/js/home-background.js' | relative_url }}"
+  data-home="{{ '/' | relative_url }}"
+  data-blog="{{ '/blog/' | relative_url }}"
+  data-sections="{{ site.menu | map: 'url' | jsonify | escape }}"
   data-video-root="{{ '/assets/video/' | relative_url }}"
   data-scenes="{{ site.data.home_backgrounds | jsonify | escape }}" defer></script>
 <link rel="stylesheet" href="{{ '/assets/css/gallery-earth.css' | relative_url }}">

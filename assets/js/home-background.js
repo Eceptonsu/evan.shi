@@ -7,6 +7,12 @@
   try { scenes = JSON.parse(script.getAttribute('data-scenes')); } catch (error) { return; }
   if (!Array.isArray(scenes) || !scenes.length) return;
   var videoRoot = new URL(script.getAttribute('data-video-root'), location.href);
+  var homePath = new URL(script.getAttribute('data-home'), location.href).pathname;
+  var blogPath = new URL(script.getAttribute('data-blog'), location.href).pathname;
+  var sectionPaths;
+  try { sectionPaths = JSON.parse(script.getAttribute('data-sections')); } catch (error) { sectionPaths = []; }
+  sectionPaths = sectionPaths.map(function (path) { return new URL(path, location.href).pathname; });
+  sectionPaths.push(homePath);
   var dayFormat = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Los_Angeles', year: 'numeric', month: 'numeric', day: 'numeric'
   });
@@ -20,7 +26,11 @@
   var video = null;
   var observer = null;
   var visible = true;
-  var failed = false;
+  var retryTimer = null;
+  var retryCount = 0;
+  var recoveryTimer = null;
+  var playPending = null;
+  var autoplayBlocked = false;
   var nextButton = null;
 
   function dayDetails() {
@@ -68,7 +78,10 @@
 
   function allowed() {
     var drawer = document.getElementById('_drawer');
-    return drawer && drawer.classList.contains('cover') &&
+    var path = location.pathname;
+    var blogPage = path.indexOf(blogPath) === 0 && /^\d+\/?$/.test(path.slice(blogPath.length));
+    var sectionPage = sectionPaths.indexOf(path) >= 0 || blogPage;
+    return sectionPage && drawer &&
       !reducedMotion.matches && !(connection && connection.saveData);
   }
 
@@ -81,6 +94,13 @@
   }
 
   function removeVideo() {
+    clearTimeout(recoveryTimer);
+    recoveryTimer = null;
+    playPending = null;
+    autoplayBlocked = false;
+    clearTimeout(retryTimer);
+    retryTimer = null;
+    retryCount = 0;
     if (observer) observer.disconnect();
     observer = null;
     video = null;
@@ -131,17 +151,65 @@
   function syncPlayback() {
     if (!video) return;
     if (document.hidden || !visible || !allowed()) {
+      clearTimeout(recoveryTimer);
+      recoveryTimer = null;
       video.pause();
       return;
     }
     var current = video;
+    if (autoplayBlocked) return;
+    watchPlayback(current);
+    if (playPending === current || !current.paused) return;
+    playPending = current;
     var attempt = current.play();
-    if (attempt) attempt.catch(function (error) {
+    if (attempt) attempt.then(function () {
+      if (playPending === current) playPending = null;
+    }, function (error) {
+      if (playPending === current) playPending = null;
       /* A pause/navigation can interrupt a pending play without being a failure. */
       if (video !== current || error.name === 'AbortError') return;
-      failed = true;
-      removeVideo();
+      if (error.name === 'NotAllowedError') {
+        autoplayBlocked = true;
+        clearTimeout(recoveryTimer);
+        recoveryTimer = null;
+        if (nextButton) nextButton.disabled = false;
+        return;
+      }
+      scheduleRetry(current);
     });
+    else playPending = null;
+  }
+
+  function watchPlayback(current, progressed) {
+    if (video !== current) return;
+    if (progressed) {
+      clearTimeout(recoveryTimer);
+      recoveryTimer = null;
+    }
+    if (recoveryTimer || retryTimer || autoplayBlocked ||
+        document.hidden || !visible || !allowed() || retryCount >= 3) return;
+    /* A pending play promise and a silent stall can otherwise leave the cover stuck forever. */
+    recoveryTimer = window.setTimeout(function () {
+      recoveryTimer = null;
+      scheduleRetry(current);
+    }, 12000);
+  }
+
+  function scheduleRetry(current) {
+    if (video !== current || retryTimer || !allowed()) return;
+    clearTimeout(recoveryTimer);
+    recoveryTimer = null;
+    if (nextButton) nextButton.disabled = false;
+    if (retryCount >= 3 || document.hidden || !visible || autoplayBlocked) return;
+    var delay = Math.min(500 * Math.pow(2, retryCount), 8000);
+    retryCount += 1;
+    retryTimer = window.setTimeout(function () {
+      retryTimer = null;
+      if (video !== current || !allowed() || document.hidden || !visible) return;
+      playPending = null;
+      current.load();
+      syncPlayback();
+    }, delay);
   }
 
   function refresh() {
@@ -150,17 +218,31 @@
     var outgoing = null;
     if (selected.id !== sceneId) {
       outgoing = video;
+      /* A failed switch may leave an older playing scene behind the pending video. */
+      var playing = document.querySelectorAll('.home-background-video.is-playing');
+      if (playing.length && outgoing && !outgoing.classList.contains('is-playing')) {
+        outgoing = playing[playing.length - 1];
+      }
+      document.querySelectorAll('.home-background-video').forEach(function (target) {
+        if (target !== outgoing) discardVideo(target);
+      });
       if (observer) observer.disconnect();
       observer = null;
       video = null;
       sceneId = selected.id;
-      failed = false;
+      clearTimeout(retryTimer);
+      retryTimer = null;
+      retryCount = 0;
+      clearTimeout(recoveryTimer);
+      recoveryTimer = null;
+      playPending = null;
+      autoplayBlocked = false;
     }
     if (!allowed()) return removeVideo();
     var backgrounds = document.querySelectorAll('#_sidebar .sidebar-bg');
     var background = backgrounds[backgrounds.length - 1];
     if (video && (!video.isConnected || video.parentNode !== background)) removeVideo();
-    if (video || failed) return syncPlayback();
+    if (video) return syncPlayback();
     if (!background) return;
 
     var current = document.createElement('video');
@@ -173,27 +255,48 @@
     current.muted = true;
     current.defaultMuted = true;
     current.loop = true;
-    current.preload = 'metadata';
+    current.autoplay = true;
+    current.preload = 'auto';
+    if (selected.poster) {
+      current.poster = new URL(selected.poster, videoRoot).href;
+      /* Show a lightweight scene preview during a cold start or blocked autoplay. */
+      if (!outgoing) current.classList.add('is-visible');
+    }
+    var lastTime = -1;
+    var bufferedUntil = 0;
+    current.addEventListener('timeupdate', function () {
+      if (video !== current || current.currentTime === lastTime) return;
+      lastTime = current.currentTime;
+      retryCount = 0;
+      watchPlayback(current, true);
+    });
+    current.addEventListener('progress', function () {
+      var end = current.buffered.length ? current.buffered.end(current.buffered.length - 1) : 0;
+      if (end <= bufferedUntil) return;
+      bufferedUntil = end;
+      watchPlayback(current, true);
+    });
+    current.addEventListener('canplay', syncPlayback);
+    current.addEventListener('waiting', function () { watchPlayback(current); });
+    current.addEventListener('stalled', function () { watchPlayback(current); });
     current.addEventListener('playing', function () {
       if (video === current) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+        watchPlayback(current, true);
         current.classList.add('is-playing');
         if (outgoing && outgoing.isConnected) {
-          window.setTimeout(function () { discardVideo(outgoing); }, 1250);
+          var previous = outgoing;
+          outgoing = null;
+          window.setTimeout(function () { discardVideo(previous); }, 1250);
         }
         if (nextButton) nextButton.disabled = false;
       }
     });
     current.addEventListener('error', function () {
       if (video !== current) return;
-      discardVideo(current);
-      if (outgoing && outgoing.isConnected) {
-        video = outgoing;
-        sceneId = outgoing.getAttribute('data-scene');
-        outgoing.play().catch(function () {});
-      } else {
-        video = null;
-        failed = true;
-      }
+      /* Keep the outgoing scene visible while the new one recovers. */
+      scheduleRetry(current);
       if (nextButton) nextButton.disabled = false;
     });
     video = current;
@@ -214,6 +317,14 @@
     if (document.hidden) syncPlayback();
     else refresh();
   });
+  function resumePlayback() {
+    autoplayBlocked = false;
+    retryCount = 0;
+    syncPlayback();
+  }
+  window.addEventListener('online', resumePlayback);
+  document.addEventListener('pointerdown', resumePlayback, { passive: true });
+  document.addEventListener('keydown', resumePlayback);
   reducedMotion.addEventListener('change', refresh);
   if (connection && connection.addEventListener) connection.addEventListener('change', refresh);
   window.addEventListener('pagehide', function () {
@@ -233,7 +344,6 @@
     });
     ['hy-push-state-after', 'hy-push-state-networkerror'].forEach(function (event) {
       pushState.addEventListener(event, function () {
-        failed = false;
         refresh();
       });
     });

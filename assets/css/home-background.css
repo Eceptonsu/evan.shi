@@ -14,7 +14,8 @@
   transition: opacity 1200ms ease;
 }
 
-.sidebar-bg > .home-background-video.is-playing {
+.sidebar-bg > .home-background-video.is-playing,
+.sidebar-bg > .home-background-video.is-visible {
   opacity: 1;
 }
 
@@ -64,14 +65,14 @@
 #_drawer.cover #_swipe {
   top: auto;
   right: auto;
-  bottom: clamp(1rem, 4vh, 2.25rem);
+  bottom: calc(var(--cookie-banner-height, 0px) + clamp(1rem, 4vh, 2.25rem));
   left: 50%;
   transform: translateX(-50%) scale(.8);
 }
 
 @media screen and (max-width: 42em) {
   #_drawer.cover #_swipe {
-    bottom: 1rem;
+    bottom: calc(var(--cookie-banner-height, 0px) + 1rem);
     transform: translateX(-50%) scale(.67);
   }
 }
