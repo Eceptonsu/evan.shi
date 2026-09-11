@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { Box3, Vector3, Matrix4, PerspectiveCamera, ShaderChunk } from '../assets/js/lib/three/three.module.min.js';
 import { createObservatory } from '../assets/js/resume-workshop-world.js';
 import { SHOTS, sampleStory, storyOrigin, sampleCamera, sampleFlight } from '../assets/js/resume-workshop-path.js';
-import { createProjectParallax } from '../assets/js/resume-workshop-art.js';
+import { createCosmicEvents, COMET_PASSES, cometPosition } from '../assets/js/resume-workshop-events.js';
 
 // Validate the actual procedural geometry, including every buffer and shader include.
 const world=createObservatory(), geometries=new Set(), materials=new Set();
@@ -99,12 +99,22 @@ assert.ok(peakDraws<125,`Visible draw submission budget: ${peakDraws}`);
 assert.ok(materials.size>0&&[...materials].every(m=>!m.transmission),'No refractive offscreen render pass');
 assert.ok(new Set(SHOTS.map(shot=>shot.side)).size===2,'Captions alternate to suit each composition');
 assert.ok(Math.max(...SHOTS.map(s=>s.scale))/Math.min(...SHOTS.map(s=>s.scale))>2,'Substantial scale variation');
-const fakeArt=Object.fromEntries(['submitty','flora','seas'].map(key=>[key,{image:{width:1920,height:960}}]));
-const art=createProjectParallax(fakeArt),artCamera=new PerspectiveCamera(48,1.6,.1,250);
-for(const p of [3.5,4,4.5,5.5,6,6.5,7]){
-  art.update(artCamera,p,.5,-.5);
-  for(const mesh of art.root.children){assert.equal(mesh.material.depthWrite,false);assert.equal(mesh.material.depthTest,false);assert.equal(mesh.scale.x,mesh.scale.y,'Image aspect ratio is preserved');}
+const eventScene=createCosmicEvents();
+for(const pass of COMET_PASSES){
+  const mid=(pass.start+pass.end)/2;
+  eventScene.update(mid);const trail=eventScene.root.getObjectByName('Comet trails');
+  const snapshot=trail.geometry.attributes.position.array.slice();
+  assert.ok(trail.geometry.attributes.strength.array.some(value=>value>.5),'Comet is visible during its crossing');
+  eventScene.update(mid+.2);eventScene.update(mid);
+  assert.deepEqual(trail.geometry.attributes.position.array,snapshot,'Reverse scrolling retraces the exact comet path');
+  eventScene.update(mid,true);assert.equal(trail.visible,false,'Reduced motion suppresses comet passes');
+  const head=cometPosition(pass,.5);assert.ok([...head].every(Number.isFinite),'Finite comet path');
 }
+for(const name of ['Eclipse horizon','Game world','Stellar engine','Connected world','Observatory moon','Ocean and garden world'])assert.ok(world.root.getObjectByName(name),`Large chapter subject: ${name}`);
+const artSource=fs.readFileSync(new URL('../assets/js/resume-workshop-art.js',import.meta.url),'utf8');
+assert.ok(!artSource.includes('projects/'),'Project images are not loaded into the scene');
+const sceneSource=fs.readFileSync(new URL('../assets/js/resume-workshop-scene.js',import.meta.url),'utf8');
+assert.ok(!sceneSource.includes('createProjectParallax'),'No project image overlays');
 for(const name of ['nebula.jpg','veil.png','planet-0.png','planet-1.png','planet-2.png'])assert.ok(fs.statSync(new URL(`../assets/img/workshop/${name}`,import.meta.url)).size>1000,`Baked artwork exists: ${name}`);
 const html=fs.readFileSync(new URL('../_site/resume/index.html',import.meta.url),'utf8');
 for(const title of ['2K Games','AgentLive Games','Yale University','Submitty','CyberPatriot Club','MDCure'])assert.ok(html.includes(title),`Resume contains ${title}`);
@@ -123,4 +133,4 @@ const css=fs.readFileSync(new URL('../assets/css/resume-workshop.css',import.met
 assert.ok(css.includes('dialog:not([open])'),'Theme cannot expose a closed dialog');
 const annotationRules=[...css.matchAll(/\.workshop__annotation\s*\{([^}]+)\}/g)].map(match=>match[1]);
 assert.ok(annotationRules.every(rule=>!/(?:max-height|overflow-y\s*:\s*(?:auto|scroll))/.test(rule)),'Captions have no internal scroll or height cap');
-console.log(`Verified ${Math.round(triangles).toLocaleString()} triangles, at most ${peakDraws} visible mesh/point submissions, baked artwork, parallax image layers, collision clearance, forward/reverse flight, responsive camera framing, reduced motion, and complete resume details.`);
+console.log(`Verified ${Math.round(triangles).toLocaleString()} triangles, at most ${peakDraws} visible mesh/point submissions, baked artwork, large celestial subjects, scroll-driven comets, collision clearance, forward/reverse flight, responsive camera framing, reduced motion, and complete resume details.`);

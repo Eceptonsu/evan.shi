@@ -1,7 +1,7 @@
 import * as THREE from './lib/three/three.module.min.js';
 import { createObservatory } from './resume-workshop-world.js';
 import { SHOTS, sampleCamera, sampleFlight, storyOrigin } from './resume-workshop-path.js';
-import { loadWorkshopArt, createProjectParallax } from './resume-workshop-art.js';
+import { loadWorkshopArt } from './resume-workshop-art.js';
 
 const clamp=THREE.MathUtils.clamp;
 const smooth=value=>value*value*(3-2*value);
@@ -29,7 +29,7 @@ export async function createWorkshop(container,signal,onContextLost,onFrame) {
   renderer.shadowMap.enabled=false;
   const scene=new THREE.Scene();scene.background=new THREE.Color(0x060919);
   const camera=new THREE.PerspectiveCamera(48,1,.1,250);
-  let world,environment,artwork,projectArt;
+  let world,environment,artwork;
   const geometries=new Set(),materials=new Set();
   function collect(){world?.root.traverse(child=>{if(child.geometry)geometries.add(child.geometry);for(const mat of Array.isArray(child.material)?child.material:child.material?[child.material]:[])materials.add(mat);});}
   function release(){collect();geometries.forEach(g=>g.dispose());const maps=new Set(Object.values(artwork||{}));materials.forEach(m=>{if(m.alphaMap)maps.add(m.alphaMap);m.dispose();});maps.forEach(texture=>texture.dispose());environment?.dispose();renderer.dispose();}
@@ -38,7 +38,6 @@ export async function createWorkshop(container,signal,onContextLost,onFrame) {
     if(signal.aborted)throw signal.reason;
     environment=studioEnvironment(renderer);scene.environment=environment.texture;scene.environmentIntensity=.65;
     world=createObservatory(artwork);scene.add(world.root);
-    projectArt=createProjectParallax(artwork);world.root.add(projectArt.root);
     scene.add(new THREE.HemisphereLight(0xc3ceff,0x3b245e,1.45));
   } catch(error){release();throw error;}
   const sun=new THREE.DirectionalLight(0xffdfb9,3.1);
@@ -87,7 +86,6 @@ export async function createWorkshop(container,signal,onContextLost,onFrame) {
     camera.setViewOffset(container.clientWidth,container.clientHeight,container.clientWidth*offset,camera.aspect<1?container.clientHeight*.15:0,container.clientWidth,container.clientHeight);
     camera.lookAt(pose.focus);camera.updateMatrixWorld();
     world.setViewPosition(camera.position,camera.quaternion);
-    projectArt.update(camera,progress,lookX,lookY);
     sun.position.copy(pose.focus).add(new THREE.Vector3(8,15,8));sun.target.position.copy(pose.focus);
     fill.position.copy(pose.focus).add(new THREE.Vector3(-8,8,-4));fill.target.position.copy(pose.focus);
     renderer.render(scene,camera);

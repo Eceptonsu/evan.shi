@@ -3,6 +3,8 @@ import { RoundedBoxGeometry } from './lib/three/RoundedBoxGeometry.js';
 import { HOVER_OFFSET, SHOTS, sampleFlight, sampleStory } from './resume-workshop-path.js';
 import { createCosmos } from './resume-workshop-cosmos.js';
 import { batchStaticMeshes } from './resume-workshop-batch.js';
+import { createCosmicEvents } from './resume-workshop-events.js';
+import { createCelestialLandmarks } from './resume-workshop-landmarks.js';
 import { createStoryThread } from './resume-workshop-story.js';
 
 // Retained sculptural details are batched around the original articulated rig.
@@ -263,7 +265,18 @@ export function createObservatory(textures={}) {
 
 
 
-  batchStaticMeshes(root,[pearl,knot,filament,...jets]);
+  // The old tabletop subjects now inhabit much larger astronomical scenes.
+  planet.name='Game world';planet.scale.setScalar(3.15);planet.position.set(.7,-1.1,-5);
+  controller.position.set(-.7,1.1,.4);controller.scale.setScalar(1.2);
+  neural.name='Stellar engine';neural.scale.setScalar(2.35);neural.position.set(-.6,1,-4.5);
+  clock.scale.setScalar(2.25);clock.position.set(1.4,.8,-.8);
+  ribbon.scale.setScalar(2.15);ribbon.position.set(-.3,1,-3.5);
+  book.scale.setScalar(1.45);book.position.x=.5;
+  paperOrbit.scale.setScalar(1.35);paperOrbit.position.z=-1.2;
+  garden.scale.setScalar(1.55);garden.position.set(-2.7,-.4,-.5);
+  ship.scale.setScalar(1.65);ship.position.set(.8,.4,-.7);
+  const landmarks=createCelestialLandmarks(chapters);
+  batchStaticMeshes(root,[pearl,knot,filament,...jets,...landmarks.animated]);
   const transitions=chapters.map(layer=>{
     const clones=new Map(),meshes=[];
     layer.traverse(child=>{if(!child.isMesh)return;meshes.push(child);
@@ -272,6 +285,7 @@ export function createObservatory(textures={}) {
     });return {materials:[...clones.values()],meshes};
   });
   const thread=createStoryThread();stage.add(thread.points);
+  const events=createCosmicEvents();stage.add(events.root);
   const cosmos=createCosmos(textures);root.add(cosmos.root);
   const tailPositions=new Float32Array(48*3),tailAges=new Float32Array(48);
   for(let i=0;i<48;i++)tailAges[i]=i/47;
@@ -287,7 +301,7 @@ export function createObservatory(textures={}) {
 
   return {root,stage,chapters,traveler,setViewPosition(position,quaternion){cosmos.setViewPosition(position,quaternion);},animate(progress,time,stationary=false,thrust=0,direction=1){
     const t=stationary?0:time;
-    const story=sampleStory(progress);stage.position.copy(story.origin);thread.animate(progress,t);
+    const story=sampleStory(progress);stage.position.copy(story.origin);thread.animate(progress,t);events.update(progress,stationary);landmarks.update(progress,t);
     chapters.forEach((layer,i)=>{
       const weight=story.weights[i];layer.visible=weight>.002;
       const a=SHOTS[story.index],b=SHOTS[story.index+1];
