@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { Box3, Vector3, Matrix4, PerspectiveCamera, ShaderChunk } from '../assets/js/lib/three/three.module.min.js';
 import { createObservatory } from '../assets/js/resume-workshop-world.js';
-import { ROOM_POSITIONS, HOVER_OFFSET, FLIGHT_CLEARANCE, SHOTS, sampleCamera, sampleFlight } from '../assets/js/resume-workshop-path.js';
+import { SHOTS, sampleStory, storyOrigin, sampleCamera, sampleFlight } from '../assets/js/resume-workshop-path.js';
+import { createProjectParallax } from '../assets/js/resume-workshop-art.js';
 
 // Validate the actual procedural geometry, including every buffer and shader include.
 const world=createObservatory(), geometries=new Set(), materials=new Set();
@@ -22,8 +23,8 @@ for(const geometry of geometries){
   if(geometry.attributes.normal)assert.ok(geometry.attributes.normal.array.every(Number.isFinite),'Finite normals');
   if(geometry.index)assert.ok(geometry.index.array.every(index=>index<geometry.attributes.position.count),'Valid mesh indices');
 }
-assert.equal(world.exhibits.length,6,'Six distinct exhibits');
-assert.ok(triangles<800000,'Geometry budget includes all instanced detail');
+assert.equal(world.chapters.length,6,'Six story layers share one stage');
+assert.ok(triangles<250000,'Geometry budget includes all instanced detail');
 assert.ok(new Box3().setFromObject(world.traveler).getSize(new Vector3()).y>2,'Traveler has full human-scale geometry');
 function radialBound(group,horizontal=false){
   world.root.updateMatrixWorld(true);const inverse=group.matrixWorld.clone().invert();let bound=0;
@@ -36,64 +37,56 @@ function radialBound(group,horizontal=false){
     }
   });return bound;
 }
-const stationBounds=world.exhibits.map(exhibit=>radialBound(exhibit,true));let travelerBound=0;
-for(const stationary of [false,true])for(const direction of [-1,1])for(let p=0;p<=7;p+=.25){
+let travelerBound=0,stageFront=-Infinity,peakDraws=0;
+const thread=world.root.getObjectByName('Continuous story thread');assert.ok(thread,'One persistent thread connects the chapters');
+for(const stationary of [false,true])for(const direction of [-1,1])for(let p=0;p<=7;p+=.125){
   world.animate(p,p*3,stationary,sampleFlight(p).thrust,direction);
+  const story=sampleStory(p);
+  assert.ok(Math.abs(story.weights.reduce((sum,value)=>sum+value,0)-1)<.00001,'Story has no empty transition');
+  assert.ok(story.weights.filter(value=>value>0).length<=2,'Only neighboring story layers overlap');
+  assert.ok(world.chapters.some(layer=>layer.visible),'Scene never disappears between chapters');
+  assert.equal(world.root.getObjectByName('Continuous story thread'),thread,'Morphing preserves the same scene object');
   world.root.traverse(object=>{
     assert.ok([...object.position,...object.rotation.toArray().slice(0,3),...object.scale].every(Number.isFinite),'Finite animated transform');
-    if(object.geometry)assert.ok(object.geometry.attributes.position.array.every(Number.isFinite),'Finite flight trail');
+    if(object.geometry)assert.ok(object.geometry.attributes.position.array.every(Number.isFinite),'Finite moving geometry');
   });
   travelerBound=Math.max(travelerBound,radialBound(world.traveler));
+  // The pilot follows a lane in front of the art. Exact chapter AABBs are more
+  // useful than origin-centered spheres for these deliberately offset layouts.
+  for(const layer of world.chapters)if(layer.visible)stageFront=Math.max(stageFront,new Box3().setFromObject(layer).max.z-world.stage.position.z);
+  let draws=0;world.root.traverseVisible(object=>{if(object.isMesh||object.isPoints)draws++;});peakDraws=Math.max(peakDraws,draws);
 }
-assert.ok(Math.max(...stationBounds)+travelerBound+.25<FLIGHT_CLEARANCE,'Safety envelope includes actual model bounds, full astronaut rotation, and drift');
+for(const p of [.5,1.5,3.5,4.5,5.5]){
+  world.animate(p,0,true);
+  assert.equal(world.chapters.filter(layer=>layer.visible).length,2,'Outgoing and incoming work overlap during a transition');
+}
+assert.equal(sampleStory(2.5).weights[2],1,'AI and its tools remain one continuous scene');
+assert.equal(SHOTS.at(-1).layer,SHOTS.at(-2).layer,'Ending preserves the project world');
+assert.ok(SHOTS.at(-1).radius<8&&SHOTS.at(-1).elevation<.2,'Ending stays intimate rather than returning to an overview');
 let previousFlight;
 for(let p=0;p<=7;p+=.005){
-  const flight=sampleFlight(p);
-  assert.ok([...flight.position,...flight.direction,flight.thrust].every(Number.isFinite),'Finite flight path');
-  ROOM_POSITIONS.forEach(([x,,z],i)=>assert.ok(Math.hypot(flight.position.x-x,flight.position.z-z)>stationBounds[i]+travelerBound+.25,'Flight keeps the full astronaut clear of every station'));
-  if(previousFlight)assert.ok(flight.position.distanceTo(previousFlight)<.4,'Continuous flight through chapter boundaries');
+  const flight=sampleFlight(p),origin=storyOrigin(p);
+  assert.ok([...flight.position,...flight.direction].every(Number.isFinite),'Finite companion path');
+  assert.ok(flight.position.z-origin.z>stageFront+travelerBound+.25,'Astronaut stays ahead of all chapter bounds, including limb rotation clearance');
+  if(previousFlight)assert.ok(flight.position.distanceTo(previousFlight)<.1,'Companion moves continuously');
   previousFlight=flight.position;
 }
-for(let i=1;i<SHOTS.length-1;i++)assert.ok(sampleFlight(i-.000001).position.distanceTo(sampleFlight(i+.000001).position)<.001,'No flight jump at a section boundary');
-for(let i=1;i<ROOM_POSITIONS.length;i++){
-  const previous=new Vector3(...ROOM_POSITIONS[i-1]),current=new Vector3(...ROOM_POSITIONS[i]);
-  assert.ok(current.distanceTo(previous)>25,'Stations have generous separation');
-  assert.ok(current.z<previous.z-15,'Journey continues deeper instead of looping back');
-  if(i>1)assert.ok((current.x-previous.x)*(previous.x-ROOM_POSITIONS[i-2][0])<0,'Successive flights alternate sides');
-}
-assert.equal(SHOTS.at(-1).room,SHOTS.at(-2).room,'Ending stays at the last exhibit');
-assert.ok(SHOTS.at(-1).radius<8&&SHOTS.at(-1).elevation<.2,'Ending is a close portrait, not an overhead overview');
-for(let i=0;i<SHOTS.length;i++){
-  const landing=new Vector3(...ROOM_POSITIONS[SHOTS[i].room]).add(new Vector3(...HOVER_OFFSET));
-  assert.ok(sampleFlight(i).position.distanceTo(landing)<.001,'Astronaut hovers beside each exhibit');
-  if(i<SHOTS.length-1&&SHOTS[i].room!==SHOTS[i+1].room){
-    const midpoint=sampleFlight(i).position.clone().lerp(sampleFlight(i+1).position,.5);
-    assert.ok(sampleFlight(i+.5).position.y>midpoint.y+1,'Flight arcs above exhibit level');
-  }
-}
-
 for(const aspect of [390/844,1440/900]){
   let previous;const camera=new PerspectiveCamera(48,aspect,.1,250);
   for(let progress=0;progress<=7;progress+=.005){
     const pose=sampleCamera(progress,aspect);
     assert.ok([...pose.position,...pose.focus].every(Number.isFinite),'Finite camera pose');
-    assert.ok(pose.position.y>1,'Camera stays above platforms');
     assert.ok(pose.position.distanceTo(pose.focus)>3,'Camera avoids its subject');
-    if(previous)assert.ok(previous.distanceTo(pose.position)<.6,'Continuous camera travel');
+    if(previous)assert.ok(previous.distanceTo(pose.position)<.2,'Continuous parallax camera');
     previous=pose.position;
-    const flight=sampleFlight(progress);
-    camera.position.copy(pose.position);camera.position.y+=flight.thrust*.75;
-    pose.focus.lerp(flight.position.clone().add(new Vector3(0,1,0)),flight.thrust*.28);
-    const index=Math.min(6,Math.floor(progress)),fraction=progress-index,t=fraction*fraction*(3-2*fraction);
-    const offset=aspect<1?0:(SHOTS[index].side==='left'?-.12:.12)*(1-t)+(SHOTS[index+1].side==='left'?-.12:.12)*t;
-    camera.setViewOffset(aspect*900,900,aspect*900*offset,aspect<1?135:0,aspect*900,900);
+    const story=sampleStory(progress),offset=(SHOTS[story.index].side==='left'?-.12:.12)*(1-story.blend)+(SHOTS[story.index+1].side==='left'?-.12:.12)*story.blend;
+    camera.position.copy(pose.position);camera.setViewOffset(aspect*900,900,aspect<1?0:aspect*900*offset,aspect<1?135:0,aspect*900,900);
     camera.lookAt(pose.focus);camera.updateMatrixWorld();
-    const projected=flight.position.clone().add(new Vector3(0,1,0)).project(camera);
-    assert.ok(Math.abs(projected.x)<.9&&Math.abs(projected.y)<.9&&projected.z>-1&&projected.z<1,`Astronaut remains framed: progress=${progress.toFixed(3)}, aspect=${aspect.toFixed(3)}, projection=${projected.toArray()}`);
+    const projected=sampleFlight(progress).position.clone().add(new Vector3(0,1,0)).project(camera);
+    assert.ok(Math.abs(projected.x)<.9&&Math.abs(projected.y)<.9&&projected.z>-1&&projected.z<1,`Companion remains framed at ${progress.toFixed(3)}, aspect ${aspect.toFixed(3)}: ${projected.toArray()}`);
     world.setViewPosition(camera.position);world.root.updateMatrixWorld(true);
-    assert.ok(world.root.getObjectByName('Nebula backdrop').getWorldPosition(new Vector3()).distanceTo(camera.position)<.001,'Sky surrounds the full extended journey');
+    assert.ok(world.root.getObjectByName('Nebula backdrop').getWorldPosition(new Vector3()).distanceTo(camera.position)<.001,'Sky surrounds the evolving scene');
   }
-  for(let i=0;i<SHOTS.length;i++)assert.ok(sampleCamera(i,aspect).focus.distanceTo(new Vector3(...SHOTS[i].focus))<4.2,'Camera composes the exhibit and astronaut together');
 }
 const layers=['Foreground stardust','Middle starfield','Distant starfield','Nebula backdrop'];
 world.setViewPosition(new Vector3());world.root.updateMatrixWorld(true);
@@ -102,6 +95,17 @@ world.setViewPosition(new Vector3(12,5,-20));world.root.updateMatrixWorld(true);
 const displacements=layers.map((name,i)=>world.root.getObjectByName(name).getWorldPosition(new Vector3()).distanceTo(layerStarts[i]));
 assert.ok(displacements[0]<.001&&displacements[1]<displacements[2]&&displacements[2]<displacements[3],'Foreground, middle stars, distant stars, and sky have distinct parallax depths');
 geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());
+assert.ok(peakDraws<125,`Visible draw submission budget: ${peakDraws}`);
+assert.ok(materials.size>0&&[...materials].every(m=>!m.transmission),'No refractive offscreen render pass');
+assert.ok(new Set(SHOTS.map(shot=>shot.side)).size===2,'Captions alternate to suit each composition');
+assert.ok(Math.max(...SHOTS.map(s=>s.scale))/Math.min(...SHOTS.map(s=>s.scale))>2,'Substantial scale variation');
+const fakeArt=Object.fromEntries(['submitty','flora','seas'].map(key=>[key,{image:{width:1920,height:960}}]));
+const art=createProjectParallax(fakeArt),artCamera=new PerspectiveCamera(48,1.6,.1,250);
+for(const p of [3.5,4,4.5,5.5,6,6.5,7]){
+  art.update(artCamera,p,.5,-.5);
+  for(const mesh of art.root.children){assert.equal(mesh.material.depthWrite,false);assert.equal(mesh.material.depthTest,false);assert.equal(mesh.scale.x,mesh.scale.y,'Image aspect ratio is preserved');}
+}
+for(const name of ['nebula.jpg','veil.png','planet-0.png','planet-1.png','planet-2.png'])assert.ok(fs.statSync(new URL(`../assets/img/workshop/${name}`,import.meta.url)).size>1000,`Baked artwork exists: ${name}`);
 const html=fs.readFileSync(new URL('../_site/resume/index.html',import.meta.url),'utf8');
 for(const title of ['2K Games','AgentLive Games','Yale University','Submitty','CyberPatriot Club','MDCure'])assert.ok(html.includes(title),`Resume contains ${title}`);
 assert.equal((html.match(/data-workshop-chapter=/g)||[]).length,8,'Eight captions');
@@ -119,4 +123,4 @@ const css=fs.readFileSync(new URL('../assets/css/resume-workshop.css',import.met
 assert.ok(css.includes('dialog:not([open])'),'Theme cannot expose a closed dialog');
 const annotationRules=[...css.matchAll(/\.workshop__annotation\s*\{([^}]+)\}/g)].map(match=>match[1]);
 assert.ok(annotationRules.every(rule=>!/(?:max-height|overflow-y\s*:\s*(?:auto|scroll))/.test(rule)),'Captions have no internal scroll or height cap');
-console.log(`Verified six sculptures, ${Math.round(triangles).toLocaleString()} triangles, cosmic shaders, forward/reverse flight, reduced motion, eight camera stops, compact captions, and complete resume details.`);
+console.log(`Verified ${Math.round(triangles).toLocaleString()} triangles, at most ${peakDraws} visible mesh/point submissions, baked artwork, parallax image layers, collision clearance, forward/reverse flight, responsive camera framing, reduced motion, and complete resume details.`);

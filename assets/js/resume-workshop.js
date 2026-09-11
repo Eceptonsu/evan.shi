@@ -14,13 +14,13 @@
     const status = root.querySelector('[data-workshop-status]');
     const annotations = [...root.querySelectorAll('[data-workshop-chapter]')];
     const nav = [...root.querySelectorAll('.workshop__nav [data-workshop-jump]')];
-    const line = root.querySelector('[data-workshop-line]'), dot = root.querySelector('[data-workshop-dot]');
     const dialog = root.querySelector('[data-workshop-dialog]');
     const scrubber = root.querySelector('[data-workshop-scrubber]');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     const events = new AbortController();
     let scene, controls, pending, visible = false, disposed = false, frame = 0, lastShot = -1;
     let detailOpener;
+    let layoutKey='';
     const inerted = new Map();
     mode.hidden = false;
 
@@ -36,18 +36,16 @@
       }
       const annotation = annotations[shot];
       const small = width <= 700;
-      const w = annotation.offsetWidth, h = annotation.offsetHeight;
-      const clamp = (n,a,b) => Math.max(a,Math.min(Math.max(a,b),n));
-      const x = small ? 10 : clamp(side === 'left' ? point.x - w - 85 : point.x + 85, 30, width - w - 105);
-      const y = small ? height - h - 60 : clamp(point.y - h*.48, 100, height - h - 80);
-      annotation.style.left = `${x}px`; annotation.style.top = `${Math.max(75,y)}px`;
-      // Keep the text fully opaque; only the glass surface is translucent.
-      annotation.style.opacity = '1';
-      const anchorX = clamp(point.x,12,width-12), anchorY = clamp(point.y,85,height-60);
-      line.setAttribute('x1',String(anchorX)); line.setAttribute('y1',String(anchorY));
-      line.setAttribute('x2',String(small ? x+w*.5 : side === 'left' ? x+w : x));
-      line.setAttribute('y2',String(small ? y : y+Math.min(h*.5,130)));
-      dot.setAttribute('cx',String(anchorX)); dot.setAttribute('cy',String(anchorY));
+      const nextLayout=`${shot}/${width}/${height}/${side}`;
+      if(layoutKey!==nextLayout){
+        const w = annotation.offsetWidth, h = annotation.offsetHeight;
+        const clamp = (n,a,b) => Math.max(a,Math.min(Math.max(a,b),n));
+        const margin=Math.max(30,width*.065);
+        const x = small ? 10 : side==='right'?width-w-margin:margin;
+        const y = small ? height - h - 60 : clamp(height*.48-h*.5,100,height-h-80);
+        annotation.style.left = `${x}px`; annotation.style.top = `${Math.max(75,y)}px`;
+        annotation.style.opacity = '1';layoutKey=nextLayout;
+      }
       root.querySelector('[data-workshop-progress]').style.transform = `scaleX(${progress/(annotations.length-1)})`;
       scrubber.value=String(root.scrollTop/Math.max(1,root.scrollHeight-root.clientHeight)*(annotations.length-1));
       scrubber.setAttribute('aria-valuetext',`${name}, section ${shot+1} of ${annotations.length}`);

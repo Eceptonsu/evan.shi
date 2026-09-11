@@ -1,35 +1,36 @@
 import * as T from './lib/three/three.module.min.js';
 import { RoundedBoxGeometry } from './lib/three/RoundedBoxGeometry.js';
-import { ROOM_POSITIONS, HOVER_OFFSET, sampleFlight } from './resume-workshop-path.js';
+import { HOVER_OFFSET, SHOTS, sampleFlight, sampleStory } from './resume-workshop-path.js';
 import { createCosmos } from './resume-workshop-cosmos.js';
+import { batchStaticMeshes } from './resume-workshop-batch.js';
+import { createStoryThread } from './resume-workshop-story.js';
 
-// Original, smooth procedural sculpture. All geometry is generated locally;
-// the scene has no model downloads or texture requests on its critical path.
-export function createObservatory() {
+// Retained sculptural details are batched around the original articulated rig.
+export function createObservatory(textures={}) {
   const root=new T.Group();
-  const physical=(color,options={})=>new T.MeshPhysicalMaterial({color,roughness:.3,metalness:.05,clearcoat:.65,clearcoatRoughness:.2,...options});
+  const physical=(color,options={})=>new T.MeshStandardMaterial({color,roughness:.3,metalness:.05,...options});
   const m={
     porcelain:physical(0xe8e7dc), chalk:physical(0xc7d8d5,{roughness:.48}),
     brass:physical(0xc99d60,{metalness:.88,roughness:.24}),
     dark:physical(0x102833,{metalness:.52,roughness:.25}),
     jade:physical(0x469d94,{metalness:.25,roughness:.22}),
     pink:physical(0xc38890,{metalness:.25,roughness:.3}),
-    glass:physical(0xa6e6db,{transmission:.65,thickness:.5,roughness:.14,metalness:0,ior:1.4}),
+    glass:physical(0xa6e6db,{roughness:.19,metalness:.65}),
     ink:physical(0x203946,{metalness:.2,roughness:.6}),
     glow:physical(0x87ecd2,{emissive:0x64d9c0,emissiveIntensity:1.2}),
     paper:physical(0xf1e7cf,{roughness:.65,side:T.DoubleSide}),
     rose:physical(0xba878e,{metalness:.7,roughness:.24,side:T.DoubleSide}),
   };
   function mesh(parent,geometry,mat,x=0,y=0,z=0) {
-    const o=new T.Mesh(geometry,mat); o.position.set(x,y,z); o.castShadow=true;o.receiveShadow=true;parent.add(o);return o;
+    const o=new T.Mesh(geometry,mat); o.position.set(x,y,z); parent.add(o);return o;
   }
-  const round=(g,w,h,d,mat,x=0,y=0,z=0,r=.08)=>mesh(g,new RoundedBoxGeometry(w,h,d,Math.min(w,h,d)<.09?1:4,Math.min(r,w/2,h/2,d/2)),mat,x,y,z);
-  const sphere=(g,r,mat,x=0,y=0,z=0)=>mesh(g,new T.SphereGeometry(r,48,32),mat,x,y,z);
-  const ring=(g,r,t,mat,x=0,y=0,z=0,arc=Math.PI*2)=>mesh(g,new T.TorusGeometry(r,t,16,128,arc),mat,x,y,z);
-  const cylinder=(g,r,h,mat,x=0,y=0,z=0)=>mesh(g,new T.CylinderGeometry(r,r,h,64),mat,x,y,z);
+  const round=(g,w,h,d,mat,x=0,y=0,z=0,r=.08)=>mesh(g,new RoundedBoxGeometry(w,h,d,Math.min(w,h,d)<.09?1:2,Math.min(r,w/2,h/2,d/2)),mat,x,y,z);
+  const sphere=(g,r,mat,x=0,y=0,z=0)=>mesh(g,new T.SphereGeometry(r,r>.3?32:16,r>.3?20:10),mat,x,y,z);
+  const ring=(g,r,t,mat,x=0,y=0,z=0,arc=Math.PI*2)=>mesh(g,new T.TorusGeometry(r,t,8,64,arc),mat,x,y,z);
+  const cylinder=(g,r,h,mat,x=0,y=0,z=0)=>mesh(g,new T.CylinderGeometry(r,r,h,24),mat,x,y,z);
   function group(parent,x=0,y=0,z=0) {const g=new T.Group();g.position.set(x,y,z);parent.add(g);return g;}
   function tube(parent,points,r,mat,closed=false) {
-    return mesh(parent,new T.TubeGeometry(new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p)),closed),80,r,10,closed),mat);
+    return mesh(parent,new T.TubeGeometry(new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p)),closed),40,r,6,closed),mat);
   }
   function beam(parent,a,b,r,mat) {
     const p=new T.Vector3(...a),q=new T.Vector3(...b),d=q.clone().sub(p);
@@ -54,29 +55,10 @@ export function createObservatory() {
     cylinder(g,.14,height,mat,-r,height/2,0);cylinder(g,.14,height,mat,r,height/2,0);
     ring(g,r-.19,.017,m.brass,0,height,.12,Math.PI);return g;
   }
-  const exhibits=ROOM_POSITIONS.map((p,i)=>{
-    const g=group(root,...p);
-    // Open orbital frames replace the solid floor: artifacts hang in space.
-    ring(g,2.87,.035,m.brass,0,.19).rotation.x=Math.PI/2;
-    ring(g,2.5,.018,m.glow,0,-.19).rotation.set(1.3,.12*i,0);
-    const orbit=ring(g,3.04,.012,m.glow,0,.12);orbit.rotation.set(.5+i*.23,.4,.3);
-    const ticks=new T.InstancedMesh(new T.BoxGeometry(.012,.015,1),m.brass,40),placement=new T.Object3D();
-    for(let n=0;n<40;n++){const a=n*Math.PI/20;placement.position.set(Math.cos(a)*2.62,.259,Math.sin(a)*2.62);placement.rotation.y=-a+Math.PI/2;placement.scale.z=n%5===0?.18:.07;placement.updateMatrix();ticks.setMatrixAt(n,placement.matrix);}g.add(ticks);
-    return g;
-  });
-
-  // 01: an observatory gate and a porcelain traveler with a smoked-gold visor.
-  const welcome=exhibits[0];arch(welcome,2.12,.8,m.porcelain,0,-.7);
-  const aperture=group(welcome,0,2,-.5);
-  ring(aperture,1.25,.055,m.brass).rotation.y=.3;
-  ring(aperture,1.0,.023,m.glow).rotation.x=.65;
-  const pearl=sphere(aperture,.48,m.glass);sphere(aperture,.18,m.glow);
-  // Overlapping iris blades and fastening points give the gate a machined edge.
-  for(let i=0;i<9;i++){
-    const blade=mesh(aperture,surface((u,v)=>{const a=i*Math.PI*2/9+u*.58,r=.57+v*.31+u*.1;return [Math.cos(a)*r,Math.sin(a)*r,.06*Math.sin(v*Math.PI)];},16,4),m.rose);
-    blade.rotation.z=.12;
-  }
-  fasteners(aperture,Array.from({length:24},(_,i)=>[Math.cos(i*Math.PI/12)*1.25,Math.sin(i*Math.PI/12)*1.25,.06]),.025);
+  const stage=group(root);stage.name='Shared evolving world';
+  const chapters=Array.from({length:6},(_,index)=>{const layer=group(stage);layer.name=`Story layer ${index}`;return layer;});
+  const aperture=group(chapters[0],0,1.9,0);
+  const pearl=sphere(aperture,.54,m.glass);sphere(aperture,.2,m.glow);
   const traveler=group(root,...HOVER_OFFSET);
   round(traveler,.64,.68,.42,m.porcelain,0,1.2,0,.2);
   round(traveler,.45,.48,.18,m.dark,0,1.2,-.28,.07);
@@ -96,7 +78,7 @@ export function createObservatory() {
   ring(traveler,.26,.065,m.brass,0,1.59).rotation.x=Math.PI/2;
   const head=group(traveler,0,1.59,0);
   sphere(head,.43,m.porcelain,0,.35);
-  const visor=sphere(head,.365,physical(0x18343d,{metalness:.93,roughness:.13,clearcoat:1}),0,.37,.22);visor.scale.set(1,.74,.68);
+  const visor=sphere(head,.365,physical(0x18343d,{metalness:.93,roughness:.13}),0,.37,.22);visor.scale.set(1,.74,.68);
   const visorRim=ring(head,.34,.025,m.brass,0,.37,.385);visorRim.scale.y=.74;
   for(const x of [-.42,.42]){const ear=cylinder(head,.12,.08,m.brass,x,.35,0);ear.rotation.z=Math.PI/2;sphere(head,.055,m.glow,x*1.06,.35,.02);}
   const arms=[],legs=[],elbows=[],knees=[];
@@ -130,7 +112,7 @@ export function createObservatory() {
   beam(traveler,[.24,1.4,-.35],[.29,1.85,-.38],.012,m.brass);
 
   // 02: a world-making instrument, with a detailed controller and brass meridians.
-  const games=exhibits[1],planet=group(games,0,1.94,-.25);
+  const games=chapters[1],planet=group(games,0,1.94,-.25);
   sphere(planet,1.08,m.jade);
   for(let i=0;i<5;i++){
     const land=mesh(planet,surface((u,v)=>{const a=u*Math.PI*2,r=v*(.32+.075*Math.sin(a*5+i)+.04*Math.cos(a*9));return new T.Vector3(Math.cos(a)*r,Math.sin(a)*r,1).normalize().multiplyScalar(1.094).toArray();},48,8),i%2?m.chalk:m.brass);
@@ -157,9 +139,9 @@ export function createObservatory() {
   fasteners(controller,[[-.77,-.34,.15],[.77,-.34,.15],[-.38,.26,.17],[.38,.26,.17]],.022);
 
   // 03/04: a glass neural instrument and its kinetic clock.
-  const ai=exhibits[2],neural=group(ai,.3,2,-.3);
-  const knot=mesh(neural,new T.TorusKnotGeometry(.9,.16,200,24,2,3),m.glass);
-  const filament=mesh(neural,new T.TorusKnotGeometry(.91,.022,200,8,2,3),m.brass);filament.rotation.z=.1;
+  const ai=chapters[2],neural=group(ai,.3,2,-.3);
+  const knot=mesh(neural,new T.TorusKnotGeometry(.9,.16,128,12,2,3),m.glass);
+  const filament=mesh(neural,new T.TorusKnotGeometry(.91,.022,128,6,2,3),m.brass);filament.rotation.z=.1;
   const knotPoint=t=>new T.Vector3(.45*(2+Math.cos(3*t))*Math.cos(2*t),.45*(2+Math.cos(3*t))*Math.sin(2*t),.45*Math.sin(3*t));
   for(let i=0;i<18;i++){
     const t=i*Math.PI*2/18,p=knotPoint(t),collar=fineRing(knot,.165,.012,m.brass,...p);
@@ -169,7 +151,7 @@ export function createObservatory() {
   const neurons=[];
   for(let i=0;i<28;i++){const y=1-(i/27)*2,a=i*2.39996,r=Math.sqrt(1-y*y);const p=[Math.cos(a)*r*1.48,y*1.48,Math.sin(a)*r*1.48];neurons.push(p);sphere(neural,.042,i%4?m.brass:m.glow,...p);if(i>1)beam(neural,neurons[i-2],p,.007,m.brass);}
   ring(neural,1.68,.018,m.glow).rotation.x=Math.PI/2;
-  lathe(ai,[[0,.25],[.8,.25],[.72,.45],[.42,.6],[.4,.9],[0,.9]],m.dark,.3,0,-.3);
+
   const clock=group(ai,-1.65,1.12,1.02);clock.rotation.y=-.15;
   cylinder(clock,.62,.12,m.dark).rotation.x=Math.PI/2;ring(clock,.63,.045,m.brass,0,0,.08);
   ring(clock,.48,.01,m.brass,0,0,.075);
@@ -185,10 +167,10 @@ export function createObservatory() {
     for(let i=0;i<5;i++){const a=i*Math.PI*2/5;beam(gear,[0,0,0],[Math.cos(a)*r,Math.sin(a)*r,0],.009,m.brass);}
     fasteners(gear,[[0,0,.025]],.026);
   }
-  cylinder(ai,.12,.48,m.brass,-1.65,.5,1.02);
+
 
   // 05: one continuous Möbius ribbon connects independent modules.
-  const systems=exhibits[3],ribbon=group(systems,0,1.85,0);
+  const systems=chapters[3],ribbon=group(systems,0,1.85,0);
   const mobius=surface((u,v)=>{const a=u*Math.PI*2,s=(v-.5)*.66;return [(1.28+s*Math.cos(a/2))*Math.cos(a),s*Math.sin(a/2),(1.28+s*Math.cos(a/2))*Math.sin(a)];},192,14);
   const band=mesh(ribbon,mobius,m.rose);band.rotation.x=.55;band.rotation.z=.35;
   detailTube(band,Array.from({length:193},(_,i)=>{const a=i*Math.PI*4/192,s=.33;return [(1.28+s*Math.cos(a/2))*Math.cos(a),s*Math.sin(a/2),(1.28+s*Math.cos(a/2))*Math.sin(a)];}),.012,m.brass,true);
@@ -207,7 +189,7 @@ export function createObservatory() {
   sphere(ribbon,.23,m.glass);
 
   // 06: individually curved pages and suspended sheets, encircled by an armillary.
-  const library=exhibits[4],book=group(library,0,1.25,0);book.rotation.set(.12,0,.08);
+  const library=chapters[4],book=group(library,0,1.25,0);book.rotation.set(.12,0,.08);
   const pageGeometry=surface((u,v)=>[u*1.43,.25*Math.sin(u*Math.PI*.95)+.08*u,(v-.5)*1.7],36,12);
   for(const side of [-1,1])for(let i=0;i<14;i++){
     const page=mesh(book,pageGeometry,i===0?m.brass:m.paper,0,i*.015,0);page.scale.x=side;page.rotation.z=side*(i===13?.12:0);
@@ -233,11 +215,11 @@ export function createObservatory() {
     }
     detailTube(sheet,[[-.19,.07,.12],[.05,.095,.12],[.16,.075,.22]],.006,m.ink);
   }
-  lathe(library,[[0,.25],[.72,.25],[.6,.4],[.26,.55],[.24,.95],[0,.95]],m.dark);
+
 
   // 07: a botanical sculpture and a carefully curved sailing vessel.
-  const projects=exhibits[5],garden=group(projects,-1.15,.25,0),ship=group(projects,1.12,.57,.35);
-  lathe(garden,[[0,0],[.85,0],[.9,.12],[.85,.2],[0,.2]],m.jade);
+  const projects=chapters[5],garden=group(projects,-1.15,.25,0),ship=group(projects,1.12,.57,.35);
+
   tube(garden,[[0,.2,0],[-.16,.8,.05],[.1,1.45,0],[-.02,2.4,.1]],.075,m.brass);
   const leafGeo=surface((u,v)=>[(v-.5)*Math.pow(Math.sin(Math.PI*u),.7)*.42,u*.7,.1*Math.sin(Math.PI*u)-.13*(v-.5)*(v-.5)],20,10);
   const leafMat=physical(0x3e9685,{side:T.DoubleSide,roughness:.29,metalness:.3});
@@ -278,10 +260,19 @@ export function createObservatory() {
   }
   beam(ship,[0,1.65,0],[-.96,.03,0],.008,m.brass);beam(ship,[0,1.65,0],[.96,.03,0],.008,m.brass);
   for(let i=0;i<4;i++){ring(ship,.042,.012,m.brass,-.5+i*.3,-.11,.37);}
-  const pool=cylinder(projects,1.17,.055,m.glass,1.12,.32,.35);pool.scale.z=.8;
-  arch(projects,1.05,.8,m.brass,1.12,-.75).scale.setScalar(.85);
 
-  const cosmos=createCosmos();root.add(cosmos.root);
+
+
+  batchStaticMeshes(root,[pearl,knot,filament,...jets]);
+  const transitions=chapters.map(layer=>{
+    const clones=new Map(),meshes=[];
+    layer.traverse(child=>{if(!child.isMesh)return;meshes.push(child);
+      const clone=original=>{if(!clones.has(original)){const material=original.clone();material.transparent=true;clones.set(original,{material,opacity:original.opacity,depthWrite:original.depthWrite});}return clones.get(original).material;};
+      child.material=Array.isArray(child.material)?child.material.map(clone):clone(child.material);
+    });return {materials:[...clones.values()],meshes};
+  });
+  const thread=createStoryThread();stage.add(thread.points);
+  const cosmos=createCosmos(textures);root.add(cosmos.root);
   const tailPositions=new Float32Array(48*3),tailAges=new Float32Array(48);
   for(let i=0;i<48;i++)tailAges[i]=i/47;
   const tailGeometry=new T.BufferGeometry();
@@ -294,8 +285,22 @@ export function createObservatory() {
   });
   const tail=new T.Points(tailGeometry,tailMaterial);tail.frustumCulled=false;root.add(tail);
 
-  return {root,exhibits,traveler,setViewPosition(position){cosmos.setViewPosition(position);},animate(progress,time,stationary=false,thrust=0,direction=1){
+  return {root,stage,chapters,traveler,setViewPosition(position,quaternion){cosmos.setViewPosition(position,quaternion);},animate(progress,time,stationary=false,thrust=0,direction=1){
     const t=stationary?0:time;
+    const story=sampleStory(progress);stage.position.copy(story.origin);thread.animate(progress,t);
+    chapters.forEach((layer,i)=>{
+      const weight=story.weights[i];layer.visible=weight>.002;
+      const a=SHOTS[story.index],b=SHOTS[story.index+1];
+      const own=a.layer===i?a:b;
+      const scale=a.layer===b.layer?T.MathUtils.lerp(a.scale,b.scale,story.blend):own.scale;
+      const offset=new T.Vector3(...own.offset);
+      if(a.layer===b.layer)offset.lerp(new T.Vector3(...b.offset),story.blend);
+      layer.scale.setScalar(scale*(.9+.1*weight));
+      layer.position.copy(offset).add(new T.Vector3((1-weight)*2.4*(i<SHOTS[story.index].layer?-1:1),(1-weight)*(i%2?1.6:-1.6),-(1-weight)*3));
+      layer.rotation.y=(1-weight)*.12;
+      transitions[i].materials.forEach(({material,opacity,depthWrite})=>{material.opacity=opacity*weight;material.depthWrite=depthWrite&&weight>.995;});
+
+    });
     aperture.rotation.y=progress*.2+Math.sin(t*.16)*.1;pearl.position.y=Math.sin(t*.4)*.06;
     planet.rotation.y=progress*.26+t*.035;
     knot.rotation.y=progress*.4+t*.06;filament.rotation.y=knot.rotation.y;
@@ -311,7 +316,6 @@ export function createObservatory() {
       for(let i=0;i<48;i++){const p=sampleFlight(progress-i*.006*direction).position;p.y+=.6;tailPositions.set([p.x+Math.sin(i*2.4)*i*.004,p.y,p.z+Math.cos(i*2.4)*i*.004],i*3);}
       tailGeometry.attributes.position.needsUpdate=true;
     }
-    exhibits.forEach((exhibit,i)=>{exhibit.position.y=ROOM_POSITIONS[i][1]+(stationary?0:Math.sin(t*.32+i)*.1);});
     // Small corrective gestures and delayed limb movement make the suit feel
     // weightless. Thrust comes from scroll velocity and settles when it stops.
     head.rotation.set(-.06-thrust*.12+Math.sin(t*.63)*.045,Math.sin(t*.43)*.2*(1-thrust),Math.sin(t*.37)*.035);

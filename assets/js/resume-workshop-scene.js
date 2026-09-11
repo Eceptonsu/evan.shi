@@ -1,6 +1,7 @@
 import * as THREE from './lib/three/three.module.min.js';
 import { createObservatory } from './resume-workshop-world.js';
-import { SHOTS, sampleCamera, sampleFlight } from './resume-workshop-path.js';
+import { SHOTS, sampleCamera, sampleFlight, storyOrigin } from './resume-workshop-path.js';
+import { loadWorkshopArt, createProjectParallax } from './resume-workshop-art.js';
 
 const clamp=THREE.MathUtils.clamp;
 const smooth=value=>value*value*(3-2*value);
@@ -21,38 +22,43 @@ function studioEnvironment(renderer) {
 export async function createWorkshop(container,signal,onContextLost,onFrame) {
   if(signal.aborted)throw signal.reason;
   const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
+  let quality=1;
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure=1.1;
-  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.shadowMap.enabled=false;
   const scene=new THREE.Scene();scene.background=new THREE.Color(0x060919);
   const camera=new THREE.PerspectiveCamera(48,1,.1,250);
-  let world,environment;
+  let world,environment,artwork,projectArt;
   const geometries=new Set(),materials=new Set();
   function collect(){world?.root.traverse(child=>{if(child.geometry)geometries.add(child.geometry);for(const mat of Array.isArray(child.material)?child.material:child.material?[child.material]:[])materials.add(mat);});}
-  function release(){collect();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());environment?.dispose();renderer.dispose();}
+  function release(){collect();geometries.forEach(g=>g.dispose());const maps=new Set(Object.values(artwork||{}));materials.forEach(m=>{if(m.alphaMap)maps.add(m.alphaMap);m.dispose();});maps.forEach(texture=>texture.dispose());environment?.dispose();renderer.dispose();}
   try {
+    artwork=await loadWorkshopArt();
+    if(signal.aborted)throw signal.reason;
     environment=studioEnvironment(renderer);scene.environment=environment.texture;scene.environmentIntensity=.65;
-    world=createObservatory();scene.add(world.root);
+    world=createObservatory(artwork);scene.add(world.root);
+    projectArt=createProjectParallax(artwork);world.root.add(projectArt.root);
     scene.add(new THREE.HemisphereLight(0xc3ceff,0x3b245e,1.45));
   } catch(error){release();throw error;}
   const sun=new THREE.DirectionalLight(0xffdfb9,3.1);
-  sun.castShadow=true;sun.shadow.mapSize.set(container.clientWidth>700?2048:1024,container.clientWidth>700?2048:1024);
-  Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10,near:.5,far:65});
-  sun.shadow.normalBias=.035;sun.shadow.bias=-.00005;
   scene.add(sun,sun.target);
   const fill=new THREE.DirectionalLight(0x92d9e5,1.65);scene.add(fill,fill.target);
   container.append(renderer.domElement);
   let active=false,disposed=false,frame=0,inViewport=true;
   let target=0,progress=0,still=false,lastTime=0,elapsed=0,flightDirection=1,flightEnergy=0;
   let pointerX=0,pointerY=0,lookX=0,lookY=0;
+  let width=1,height=1,lastPresented=-1,slowFrames=0,measureFrames=0,frameCost=0;
   const projected=new THREE.Vector3(),flightRotation=new THREE.Quaternion();
   function project(point){projected.set(...point).project(camera);return{x:(projected.x*.5+.5)*container.clientWidth,y:(-.5*projected.y+.5)*container.clientHeight,visible:projected.z>-1&&projected.z<1};}
   function draw(time=0){
     frame=0;if(disposed||!active||!inViewport)return;
-    // Slow ambient movement is rendered at 30 fps, paused when hidden or reduced.
-    if(!still&&lastTime&&time-lastTime<32){request();return;}
+    // Scroll/pointer interaction gets display-rate updates; quiet ambient motion
+    // runs at 24 fps. Resolution also backs off on slower devices.
+    const moving=Math.abs(target-progress)>.001||Math.abs(pointerX-lookX)+Math.abs(pointerY-lookY)>.015;
+    if(!still&&!moving&&lastTime&&time-lastTime<40){request();return;}
+    const started=performance.now();
+    const interval=lastTime?time-lastTime:0;
     const delta=Math.min((time-lastTime)/1000||.033,.06);lastTime=time;if(!still)elapsed+=delta;
     const difference=target-progress,previousProgress=progress;
     progress=still?Math.round(target):Math.abs(difference)<.0005?target:progress+difference*(1-Math.exp(-delta*10));
@@ -71,8 +77,6 @@ export async function createWorkshop(container,signal,onContextLost,onFrame) {
     if(still)world.traveler.quaternion.copy(flightRotation);else world.traveler.quaternion.slerp(flightRotation,1-Math.exp(-delta*5));
     world.animate(progress,elapsed,still,flightEnergy,flightDirection);
     const pose=sampleCamera(progress,camera.aspect);camera.position.copy(pose.position);
-    camera.position.y+=thrust*.75;
-    pose.focus.lerp(flight.position.clone().add(new THREE.Vector3(0,1,0)),thrust*.28);
     lookX=still?0:THREE.MathUtils.lerp(lookX,pointerX,1-Math.exp(-delta*3));
     lookY=still?0:THREE.MathUtils.lerp(lookY,pointerY,1-Math.exp(-delta*3));
     camera.position.add(new THREE.Vector3(lookX*.65,-lookY*.3,0));
@@ -82,15 +86,25 @@ export async function createWorkshop(container,signal,onContextLost,onFrame) {
     const offset=camera.aspect<1?0:THREE.MathUtils.lerp(SHOTS[segment].side==='left'?-.12:.12,SHOTS[segment+1].side==='left'?-.12:.12,travel);
     camera.setViewOffset(container.clientWidth,container.clientHeight,container.clientWidth*offset,camera.aspect<1?container.clientHeight*.15:0,container.clientWidth,container.clientHeight);
     camera.lookAt(pose.focus);camera.updateMatrixWorld();
-    world.setViewPosition(camera.position);
+    world.setViewPosition(camera.position,camera.quaternion);
+    projectArt.update(camera,progress,lookX,lookY);
     sun.position.copy(pose.focus).add(new THREE.Vector3(8,15,8));sun.target.position.copy(pose.focus);
     fill.position.copy(pose.focus).add(new THREE.Vector3(-8,8,-4));fill.target.position.copy(pose.focus);
     renderer.render(scene,camera);
-    onFrame?.({progress,shot:shotIndex,point:project(shot.anchor),side:shot.side,name:shot.name});
+    const anchor=new THREE.Vector3(...shot.anchor).add(storyOrigin(progress));
+    if(Math.abs(progress-lastPresented)>.0001){
+      onFrame?.({progress,shot:shotIndex,point:project(anchor.toArray()),side:shot.side,name:shot.name});lastPresented=progress;
+    }
+    frameCost+=Math.max(performance.now()-started,moving&&interval<100?interval:0);measureFrames++;
+    if(measureFrames>=45){
+      slowFrames=frameCost/measureFrames>22?slowFrames+1:0;
+      if(slowFrames>=2&&quality>.7){quality=Math.max(.7,quality-.15);slowFrames=0;resize();}
+      frameCost=0;measureFrames=0;
+    }
     if(!still)request();
   }
   function request(){if(!frame&&active&&inViewport&&!disposed)frame=requestAnimationFrame(draw);}
-  function resize(){if(disposed)return;const width=container.clientWidth,height=container.clientHeight;if(!width||!height)return;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();request();}
+  function resize(){if(disposed)return;width=container.clientWidth;height=container.clientHeight;if(!width||!height)return;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.35,Math.sqrt(1700000/(width*height)))*quality);renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();lastPresented=-1;request();}
   const observer=new ResizeObserver(resize);observer.observe(container);
   const intersection=new IntersectionObserver(entries=>{inViewport=entries[0].isIntersecting;if(inViewport)request();else{cancelAnimationFrame(frame);frame=0;}});intersection.observe(container);
   function contextLost(event){event.preventDefault();onContextLost();}
