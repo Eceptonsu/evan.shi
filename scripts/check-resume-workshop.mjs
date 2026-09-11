@@ -89,6 +89,19 @@ for(const aspect of [390/844,1440/900]){
   }
 }
 const layers=['Foreground stardust','Middle starfield','Distant starfield','Nebula backdrop'];
+const nebula=world.root.getObjectByName('Nebula backdrop');
+const flowShader={uniforms:{},vertexShader:'#include <common>\n#include <uv_vertex>'};
+nebula.material.onBeforeCompile(flowShader);
+world.animate(0,12,false);
+assert.equal(flowShader.uniforms.nebulaTime.value,12,'Nebula shader receives the ambient clock');
+assert.ok(nebula.rotation.y!==0,'Nebula slowly drifts while idle');
+world.animate(0,12,true);
+assert.equal(flowShader.uniforms.nebulaTime.value,0,'Reduced motion freezes the flowing background');
+assert.equal(nebula.rotation.y,0,'Reduced motion freezes sky drift');
+world.animate(.5,0,true);
+const limb=world.root.getObjectByName('Soft atmospheric limb');
+assert.equal(limb.material.uniforms.chapterOpacity.value,.5,'Atmosphere fades with its chapter');
+assert.ok(!world.root.getObjectByName('Eclipse horizon').children.some(child=>child.geometry?.type==='TorusGeometry'),'Opening planet has no detached orbital hoops');
 world.setViewPosition(new Vector3());world.root.updateMatrixWorld(true);
 const layerStarts=layers.map(name=>world.root.getObjectByName(name).getWorldPosition(new Vector3()));
 world.setViewPosition(new Vector3(12,5,-20));world.root.updateMatrixWorld(true);

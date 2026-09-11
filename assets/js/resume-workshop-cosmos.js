@@ -1,11 +1,24 @@
 import * as T from './lib/three/three.module.min.js';
 import { createDetailedPlanets } from './resume-workshop-planets.js';
 
-// Baked nebula artwork replaces the previous full-screen procedural shader.
+// Keep the baked artwork; broad UV advection runs on vertices, not on every
+// screen pixel. This adds flowing motion without the old noise shader's cost.
 export function createCosmos(textures={}) {
   const root=new T.Group();root.name='Interstellar sky';
   const uniforms={time:{value:0}};
   const skyMaterial=new T.MeshBasicMaterial({map:textures.nebula||null,color:textures.nebula?0xffffff:0x111a36,side:T.BackSide,depthWrite:false,toneMapped:false});
+  if(textures.nebula){textures.nebula.wrapS=T.RepeatWrapping;textures.nebula.needsUpdate=true;}
+  skyMaterial.onBeforeCompile=shader=>{
+    shader.uniforms.nebulaTime=uniforms.time;
+    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nuniform float nebulaTime;')
+      .replace('#include <uv_vertex>',`#include <uv_vertex>
+#ifdef USE_MAP
+        float taper=sin(uv.y*3.14159265);
+        vMapUv.x+=taper*(.018*sin(uv.y*12.+nebulaTime*.18)+.009*sin(uv.x*12.56637-nebulaTime*.13));
+        vMapUv.y+=taper*.009*sin(uv.x*6.283185+nebulaTime*.15);
+#endif`);
+  };
+  skyMaterial.customProgramCacheKey=()=> 'workshop-nebula-flow-v2';
   const sky=new T.Mesh(new T.SphereGeometry(110,32,16),skyMaterial);sky.name='Nebula backdrop';root.add(sky);
 
   let seed=2718;const random=()=>{seed=(1664525*seed+1013904223)>>>0;return seed/4294967296;};
@@ -45,13 +58,32 @@ export function createCosmos(textures={}) {
   }));dust.name='Foreground stardust';dust.frustumCulled=false;root.add(dust);
 
   const veils=new T.Group();veils.name='Nebula veils';root.add(veils);
-  for(const [x,y,z,phase] of [[-18,12,-42,.3],[30,-12,-60,1.8]]){
-    const veil=new T.Mesh(new T.PlaneGeometry(90,45),new T.MeshBasicMaterial({map:textures.veil||null,side:T.DoubleSide,transparent:true,depthWrite:false,toneMapped:false,opacity:textures.veil?.6:0,blending:T.AdditiveBlending}));
-    veil.position.set(x,y,z);veil.rotation.z=phase*.2;veils.add(veil);
+  const driftingVeils=[];
+  for(const [x,y,z,phase] of [[-12,5,-38,.3],[18,-5,-50,1.8]]){
+    const veilMaterial=new T.MeshBasicMaterial({map:textures.veil||null,side:T.DoubleSide,transparent:true,depthWrite:false,toneMapped:false,opacity:textures.veil?.95:0,blending:T.AdditiveBlending});
+    veilMaterial.forceSinglePass=true;
+    veilMaterial.onBeforeCompile=shader=>{
+      shader.uniforms.nebulaTime=uniforms.time;shader.uniforms.nebulaPhase={value:phase};
+      shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nuniform float nebulaTime;\nuniform float nebulaPhase;')
+        .replace('#include <begin_vertex>',`#include <begin_vertex>
+          transformed.y+=sin(position.x*.075+nebulaTime*.25+nebulaPhase)*3.2;
+          transformed.z+=cos(position.x*.055-nebulaTime*.18+nebulaPhase)*1.6;`);
+    };
+    veilMaterial.customProgramCacheKey=()=> 'workshop-veil-flow-v2';
+    const veil=new T.Mesh(new T.PlaneGeometry(90,45,24,8),veilMaterial);
+    veil.position.set(x,y,z);veil.rotation.z=phase*.2;veils.add(veil);driftingVeils.push({veil,x,y,phase});
   }
 
   const planets=createDetailedPlanets(textures);root.add(planets.root);
-  return {root,animate(time){uniforms.time.value=time;planets.animate(time);},setViewPosition(position,quaternion){
+  return {root,animate(time){
+    uniforms.time.value=time;planets.animate(time);
+    sky.rotation.y=Math.sin(time*.055)*.07;sky.rotation.z=Math.sin(time*.04)*.02;
+    for(const {veil,x,y,phase} of driftingVeils){
+      veil.position.x=x+(Math.sin(time*.13+phase)-Math.sin(phase))*5.5;
+      veil.position.y=y+(Math.cos(time*.095+phase)-Math.cos(phase))*2.4;
+      veil.rotation.z=phase*.2+Math.sin(time*.085)*.035;
+    }
+  },setViewPosition(position,quaternion){
     planets.faceCamera(quaternion);
     // Distant bodies shift slowly; the enclosing nebula always surrounds the
     // camera, including at the far end of the extended journey.

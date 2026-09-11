@@ -312,7 +312,7 @@ export function createObservatory(textures={}) {
       layer.scale.setScalar(scale*(.9+.1*weight));
       layer.position.copy(offset).add(new T.Vector3((1-weight)*2.4*(i<SHOTS[story.index].layer?-1:1),(1-weight)*(i%2?1.6:-1.6),-(1-weight)*3));
       layer.rotation.y=(1-weight)*.12;
-      transitions[i].materials.forEach(({material,opacity,depthWrite})=>{material.opacity=opacity*weight;material.depthWrite=depthWrite&&weight>.995;});
+      transitions[i].materials.forEach(({material,opacity,depthWrite})=>{material.opacity=opacity*weight;material.depthWrite=depthWrite&&weight>.995;if(material.uniforms?.chapterOpacity)material.uniforms.chapterOpacity.value=material.opacity;});
 
     });
     aperture.rotation.y=progress*.2+Math.sin(t*.16)*.1;pearl.position.y=Math.sin(t*.4)*.06;
