@@ -13,6 +13,7 @@
     const toggle = document.querySelector('[data-gallery-toggle]');
     const grid = document.querySelector('[data-gallery-grid]');
     const heading = document.querySelector('[data-gallery-images-heading]');
+    const layouts = document.querySelector('[data-gallery-layout]');
     const photos = Array.from(grid.querySelectorAll('a[data-lat][data-lng]'));
     let scene, pending, disposed = false;
     let view = 'grid';
@@ -23,6 +24,7 @@
       root.hidden = !earth;
       grid.hidden = earth;
       if (heading) heading.hidden = earth;
+      if (layouts) layouts.hidden = earth;
       document.querySelector('[data-gallery-caption]')?.classList.remove('is-visible');
       toggle.dataset.view = next;
       const label = earth ? 'Switch to Grid view' : 'Switch to Earth view';

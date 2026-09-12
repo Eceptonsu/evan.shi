@@ -1,12 +1,12 @@
-.gallery[hidden], .gallery-section[hidden], .gallery-earth[hidden], .gallery-earth [hidden] {
+.gallery[hidden], .gallery-section[hidden], .gallery-earth[hidden], .gallery-earth [hidden], .gallery-layout[hidden] {
   display: none !important;
 }
 
 .gallery-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  justify-content: flex-end;
+  gap: .5rem;
   margin-top: 1.25rem;
 }
 

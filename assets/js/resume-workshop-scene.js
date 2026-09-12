@@ -32,7 +32,7 @@ export async function createWorkshop(container,signal,onContextLost,onFrame) {
   let world,environment,artwork;
   const geometries=new Set(),materials=new Set();
   function collect(){world?.root.traverse(child=>{if(child.geometry)geometries.add(child.geometry);for(const mat of Array.isArray(child.material)?child.material:child.material?[child.material]:[])materials.add(mat);});}
-  function release(){collect();geometries.forEach(g=>g.dispose());const maps=new Set(Object.values(artwork||{}));materials.forEach(m=>{if(m.alphaMap)maps.add(m.alphaMap);m.dispose();});maps.forEach(texture=>texture.dispose());environment?.dispose();renderer.dispose();}
+  function release(){collect();geometries.forEach(g=>g.dispose());const maps=new Set(Object.values(artwork||{}));materials.forEach(m=>{if(m.map)maps.add(m.map);if(m.alphaMap)maps.add(m.alphaMap);m.dispose();});maps.forEach(texture=>texture.dispose());environment?.dispose();renderer.dispose();}
   try {
     artwork=await loadWorkshopArt();
     if(signal.aborted)throw signal.reason;

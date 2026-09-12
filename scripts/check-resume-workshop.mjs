@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { Box3, Vector3, Matrix4, PerspectiveCamera, ShaderChunk } from '../assets/js/lib/three/three.module.min.js';
+import { Box3, Vector3, Matrix4, PerspectiveCamera, ShaderChunk, Raycaster } from '../assets/js/lib/three/three.module.min.js';
 import { createObservatory } from '../assets/js/resume-workshop-world.js';
 import { SHOTS, sampleStory, storyOrigin, sampleCamera, sampleFlight } from '../assets/js/resume-workshop-path.js';
 import { createCosmicEvents, COMET_PASSES, cometPosition } from '../assets/js/resume-workshop-events.js';
@@ -26,6 +26,14 @@ for(const geometry of geometries){
 assert.equal(world.chapters.length,6,'Six story layers share one stage');
 assert.ok(triangles<250000,'Geometry budget includes all instanced detail');
 assert.ok(new Box3().setFromObject(world.traveler).getSize(new Vector3()).y>2,'Traveler has full human-scale geometry');
+const visor=world.traveler.getObjectByName('Flush curved visor');
+assert.ok(visor&&visor.geometry.parameters.thetaLength<Math.PI/2,'Visor follows the helmet as a spherical cap');
+for(const name of ['Connected world','Observatory moon','Ocean and garden world']){
+  const map=world.root.getObjectByName(name).material.map;
+  assert.ok(map?.isDataTexture&&map.generateMipmaps,'Planet detail is precomputed and mipmapped');
+  const {data,width,height}=map.image;
+  for(let y=0;y<height;y++)for(let c=0;c<4;c++)assert.equal(data[y*width*4+c],data[(y*width+width-1)*4+c],'Planet texture wraps without a longitudinal seam');
+}
 function radialBound(group,horizontal=false){
   world.root.updateMatrixWorld(true);const inverse=group.matrixWorld.clone().invert();let bound=0;
   group.traverse(object=>{if(!object.geometry)return;object.geometry.computeBoundingSphere();
@@ -59,8 +67,40 @@ for(const stationary of [false,true])for(const direction of [-1,1])for(let p=0;p
 for(const p of [.5,1.5,3.5,4.5,5.5]){
   world.animate(p,0,true);
   assert.equal(world.chapters.filter(layer=>layer.visible).length,2,'Outgoing and incoming work overlap during a transition');
+  for(const layer of world.chapters)if(layer.visible)layer.traverse(node=>{
+    const material=node.material;
+    if(material?.isMeshStandardMaterial||material?.isMeshBasicMaterial)assert.ok(!material.transparent&&material.alphaHash&&material.depthWrite,'Solid chapter surfaces retain depth occlusion throughout fades');
+  });
 }
+// Cover a complete rotation, using actual vertices rather than the oversized
+// rotated local bounding boxes of the batched sculptures.
+const gameWorld=world.root.getObjectByName('Game world'),controller=world.root.getObjectByName('Game controller');
+const book=world.root.getObjectByName('Research book'),sheets=world.root.getObjectByName('Suspended research pages');
+for(let time=0;time<=185;time+=5){
+  world.animate(1,time,false);world.root.updateMatrixWorld(true);
+  assert.ok(new Box3().setFromObject(controller,true).min.z-new Box3().setFromObject(gameWorld,true).max.z>.1,'Controller clears the planet, satellite, and rings throughout rotation');
+  world.animate(5,time,false);world.root.updateMatrixWorld(true);
+  assert.ok(new Box3().setFromObject(sheets,true).min.y-new Box3().setFromObject(book,true).max.y>.2,'Floating research sheets clear the book throughout animation');
+}
+world.animate(5,0,true);world.root.updateMatrixWorld(true);
+const paperMeshes=book.children.filter(node=>node.isMesh&&node.material.color?.getHex()===0xf1e7cf);
+const down=new Vector3(0,-1,0).transformDirection(book.matrixWorld),ray=new Raycaster();
+let letteringSamples=0;
+book.getObjectByName('Page lettering').traverse(node=>{
+  if(!node.geometry)return;
+  const vertices=node.geometry.attributes.position;
+  for(let i=0;i<vertices.count;i+=71){
+    const point=new Vector3().fromBufferAttribute(vertices,i).applyMatrix4(node.matrixWorld);
+    ray.set(point.addScaledVector(down,-5),down);
+    const hit=ray.intersectObjects(paperMeshes,false)[0];
+    assert.ok(hit&&hit.distance>5.005,'Lettering remains above the actual top page surface');letteringSamples++;
+  }
+});
+assert.ok(letteringSamples>50,'Sample lettering across both pages');
 assert.equal(sampleStory(2.5).weights[2],1,'AI and its tools remain one continuous scene');
+for(let chapter=0;chapter<SHOTS.length;chapter++)for(const offset of [-.3,0,.3]){
+  assert.equal(sampleStory(chapter+offset).weights[SHOTS[chapter].layer],1,'Each chapter holds full opacity before and after its focal point');
+}
 assert.equal(SHOTS.at(-1).layer,SHOTS.at(-2).layer,'Ending preserves the project world');
 assert.ok(SHOTS.at(-1).radius<8&&SHOTS.at(-1).elevation<.2,'Ending stays intimate rather than returning to an overview');
 let previousFlight;
@@ -100,7 +140,7 @@ assert.equal(flowShader.uniforms.nebulaTime.value,0,'Reduced motion freezes the 
 assert.equal(nebula.rotation.y,0,'Reduced motion freezes sky drift');
 world.animate(.5,0,true);
 const limb=world.root.getObjectByName('Soft atmospheric limb');
-assert.equal(limb.material.uniforms.chapterOpacity.value,.5,'Atmosphere fades with its chapter');
+assert.ok(Math.abs(limb.material.uniforms.chapterOpacity.value-.5)<1e-9,'Atmosphere fades with its chapter');
 assert.ok(!world.root.getObjectByName('Eclipse horizon').children.some(child=>child.geometry?.type==='TorusGeometry'),'Opening planet has no detached orbital hoops');
 world.setViewPosition(new Vector3());world.root.updateMatrixWorld(true);
 const layerStarts=layers.map(name=>world.root.getObjectByName(name).getWorldPosition(new Vector3()));

@@ -1,19 +1,14 @@
 import * as T from './lib/three/three.module.min.js';
+import { createPlanetSurface } from './resume-workshop-surfaces.js';
 
 // Large spatial subjects give the small handcrafted details a world to inhabit.
-// Surface color is baked into vertices once; no textures or noise fragment loops.
+// Surface maps are generated once, with no procedural noise fragment loops.
 export function createCelestialLandmarks(chapters){
   const animated=[];
   function planet(parent,name,radius,position,low,high){
-    const geometry=new T.SphereGeometry(radius,40,28),vertices=geometry.attributes.position,colors=[];
-    const a=new T.Color(low),b=new T.Color(high),color=new T.Color();
-    for(let i=0;i<vertices.count;i++){
-      const x=vertices.getX(i)/radius,y=vertices.getY(i)/radius,z=vertices.getZ(i)/radius;
-      const field=Math.sin(x*9+Math.sin(z*7)*1.3)+Math.sin(y*13-z*5)*.5+Math.cos(z*17+x*3)*.23;
-      color.copy(a).lerp(b,T.MathUtils.smoothstep(field,-.3,.65));colors.push(...color);
-    }
-    geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));
-    const body=new T.Mesh(geometry,new T.MeshStandardMaterial({vertexColors:true,roughness:.64,metalness:.2}));
+    const geometry=new T.SphereGeometry(radius,56,36);
+    const rocky=name==='Observatory moon',map=createPlanetSurface(low,high,rocky);
+    const body=new T.Mesh(geometry,new T.MeshStandardMaterial({map,roughness:rocky?.88:.53,metalness:rocky?0:.12}));
     body.name=name;body.position.set(...position);parent.add(body);animated.push(body);return body;
   }
   function orbit(parent,radius,color,rotation=[0,0,0]){

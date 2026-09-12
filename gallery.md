@@ -10,7 +10,7 @@ title: Gallery
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1.5"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1.5"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1.5"/><rect x="14" y="14" width="6.5" height="6.5" rx="1.5"/></svg>
     </span></span>
   </button>
-<div class="gallery-layout" role="group" aria-label="Gallery layout">
+<div class="gallery-layout" data-gallery-layout role="group" aria-label="Gallery layout">
   <button class="gallery-layout__button" type="button" data-gallery-columns="1" aria-label="Show one item per row" aria-pressed="false">
     <span class="gallery-layout__icon gallery-layout__icon--one" aria-hidden="true"><span></span><i></i></span>
   </button>

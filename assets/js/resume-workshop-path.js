@@ -16,7 +16,11 @@ export function storyOrigin(progress){const p=MathUtils.clamp(progress,0,7);retu
 export function sampleStory(progress){
   const p=MathUtils.clamp(progress,0,7),index=Math.min(6,Math.floor(p)),fraction=p-index;
   const blend=fraction*fraction*(3-2*fraction),weights=Array(6).fill(0);
-  weights[SHOTS[index].layer]+=1-blend;weights[SHOTS[index+1].layer]+=blend;
+  // Keep each chapter completely solid across 64% of its scroll interval.
+  // Only the middle of the journey between chapters crossfades; camera motion
+  // keeps its original continuous curve throughout the fully visible hold.
+  const fade=MathUtils.smoothstep(fraction,.32,.68);
+  weights[SHOTS[index].layer]+=1-fade;weights[SHOTS[index+1].layer]+=fade;
   return {index,blend,weights,origin:storyOrigin(p)};
 }
 function flightPosition(progress){const p=MathUtils.clamp(progress,0,7),angle=-.12+p*.045;return storyOrigin(p).add(new Vector3(Math.sin(angle)*6.5,1+Math.sin(p*.8)*.14,Math.cos(angle)*6.5));}
