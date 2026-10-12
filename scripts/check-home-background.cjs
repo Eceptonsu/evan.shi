@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 // Exercise the shipped controller with deterministic media failures and lifecycle events.
-function fixture() {
+function fixture(options = {}) {
   let now = 0, timerId = 0;
   const timers = new Map(), elements = [], mutations = [];
   class Element {
@@ -58,7 +58,9 @@ function fixture() {
     return elements.filter(el => el.isConnected && el.classList.contains('home-background-video') &&
       (!selector.endsWith('.is-playing') || el.classList.contains('is-playing')));
   };
-  const scenes = ['fjord', 'alpine', 'mist'].map(id => ({ id, label: id, file: id + '.mp4', poster: id + '.jpg' }));
+  const scenes = ['fjord', 'alpine', 'mist'].map(id => ({ id, label: id,
+    file: id + '.mp4', poster: id + '.jpg',
+    mobile_file: id + '-mobile.mp4', mobile_poster: id + '-mobile.jpg' }));
   const script = new Element();
   Object.entries({ 'data-scenes': JSON.stringify(scenes), 'data-video-root': '/assets/video/',
     'data-home': '/', 'data-blog': '/blog/', 'data-sections': '["/gallery/"]' })
@@ -67,7 +69,8 @@ function fixture() {
   const window = new Element();
   const reducedMotion = new Element(); reducedMotion.matches = false;
   const connection = new Element(); connection.saveData = false;
-  window.matchMedia = () => reducedMotion;
+  connection.effectiveType = options.connection || '4g';
+  window.matchMedia = query => query.includes('max-width') ? { matches: !!options.mobile } : reducedMotion;
   window.setTimeout = (fn, delay) => { timers.set(++timerId, { fn, at: now + delay }); return timerId; };
   const clearTimeout = id => timers.delete(id);
   const location = { href: 'https://example.test/?scene=fjord', pathname: '/', search: '?scene=fjord' };
@@ -109,6 +112,21 @@ function fixture() {
 }
 
 (async () => {
+  {
+    const desktop = fixture();
+    assert.ok(desktop.current().src.endsWith('/fjord.mp4'), 'Desktop selects the high-resolution video');
+    assert.ok(desktop.current().poster.endsWith('/fjord.jpg'));
+    for (const options of [{ mobile: true }, { connection: '3g' }, { connection: '2g' }, { connection: 'slow-2g' }]) {
+      const page = fixture(options);
+      assert.ok(page.current().src.endsWith('/fjord-mobile.mp4'), 'Mobile/slow networks select only the smaller video');
+      assert.ok(page.current().poster.endsWith('/fjord-mobile.jpg'), 'The preview matches video quality');
+      page.next();
+      assert.ok(page.current().src.endsWith('/alpine-mobile.mp4'), 'Scene changes preserve mobile selection');
+    }
+    desktop.connection.effectiveType = '3g';
+    desktop.connection.emit('change');
+    assert.ok(desktop.current().src.endsWith('/fjord.mp4'), 'Connection changes retain the active decoder and playback position');
+  }
   {
     const page = fixture(), video = page.current();
     assert.equal(video.preload, 'auto');

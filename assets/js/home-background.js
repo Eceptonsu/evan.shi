@@ -116,6 +116,18 @@
     return scenes[(scenes.indexOf(selected) + 1) % scenes.length];
   }
 
+  function sceneMedia(selected) {
+    /* Choose once per scene, so a resize never interrupts an already playing loop.
+       Small screens and slow connections retain the lightweight version. */
+    var smallScreen = window.matchMedia('(max-width: 42em)').matches;
+    var slowConnection = connection && /^(slow-2g|2g|3g)$/.test(connection.effectiveType);
+    var mobile = selected.mobile_file && (smallScreen || slowConnection);
+    return {
+      file: mobile ? selected.mobile_file : selected.file,
+      poster: mobile ? (selected.mobile_poster || selected.poster) : selected.poster
+    };
+  }
+
   function updateButton(selected) {
     if (!allowed()) return removeButton();
     var sidebar = document.getElementById('_sidebar');
@@ -246,6 +258,7 @@
     if (!background) return;
 
     var current = document.createElement('video');
+    var media = sceneMedia(selected);
     current.className = 'home-background-video';
     current.setAttribute('data-scene', selected.id);
     current.setAttribute('aria-hidden', 'true');
@@ -257,8 +270,8 @@
     current.loop = true;
     current.autoplay = true;
     current.preload = 'auto';
-    if (selected.poster) {
-      current.poster = new URL(selected.poster, videoRoot).href;
+    if (media.poster) {
+      current.poster = new URL(media.poster, videoRoot).href;
       /* Show a lightweight scene preview during a cold start or blocked autoplay. */
       if (!outgoing) current.classList.add('is-visible');
     }
@@ -300,7 +313,7 @@
       if (nextButton) nextButton.disabled = false;
     });
     video = current;
-    current.src = new URL(selected.file, videoRoot).href;
+    current.src = new URL(media.file, videoRoot).href;
     background.appendChild(current);
     visible = background.getBoundingClientRect().bottom > 0;
     if ('IntersectionObserver' in window) {
