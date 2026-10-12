@@ -10,6 +10,14 @@ source "https://rubygems.org"
 # Happy Jekylling!
 gem "jekyll", "~> 4.1"
 
+# Explicit stdlib gems needed by the locked Jekyll, Liquid, SafeYAML,
+# and concurrent-ruby versions on newer Ruby releases.
+gem "logger"
+gem "csv"
+gem "base64"
+gem "bigdecimal"
+gem "mutex_m"
+
 gem "jekyll-theme-hydejack", path: "./#jekyll-theme-hydejack"
 
 # IMPORTANT: The followign gem is used to compile math formulas to 
@@ -50,6 +58,6 @@ group :jekyll_plugins do
   gem "jekyll-compose"
 end
 
-gem 'wdm' if Gem.win_platform?
+# Use `jekyll serve --force_polling` on Windows to avoid a native watcher dependency.
 gem "tzinfo-data" if Gem.win_platform?
 

@@ -1,0 +1,108 @@
+/* Keep all playground styles inside the article widget. */
+.atmosphere-lab {
+  --lab-line: rgba(128, 128, 128, .25);
+  --lab-accent: var(--accent-color, #667b8b);
+  margin: 1.5rem 0;
+  border: 1px solid var(--lab-line);
+  border-radius: 8px;
+  overflow: hidden;
+  scroll-margin-top: 2rem;
+  font-family: inherit;
+  color: inherit;
+}
+.atmosphere-lab * { box-sizing: border-box; }
+.atmosphere-lab .viewport {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: #111a24 url('../img/blog/as/space.png') center / cover;
+  color: #fff;
+}
+.atmosphere-lab .viewport.is-running { background: #000; }
+.atmosphere-lab canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+.atmosphere-lab canvas:active { cursor: grabbing; }
+.atmosphere-lab .welcome {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, .15);
+}
+.atmosphere-lab .welcome[hidden] { display: none; }
+.atmosphere-lab .welcome small { font-size: 11px; opacity: .8; }
+.atmosphere-lab button {
+  min-width: 0;
+  height: auto;
+  margin: 0;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  box-shadow: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
+  transition: background .15s;
+}
+.atmosphere-lab button:hover { background: rgba(128, 128, 128, .1); }
+.atmosphere-lab button[aria-pressed="true"] { border-color: var(--lab-line); background: rgba(128, 128, 128, .08); }
+.atmosphere-lab button:disabled { cursor: wait; opacity: .6; }
+.atmosphere-lab .welcome button { padding: 9px 18px; background: #f5f5f3; color: #1a2027; }
+.atmosphere-lab :is(button, input, select, summary, canvas):focus-visible { outline: 2px solid var(--lab-accent); outline-offset: 2px; }
+.atmosphere-lab canvas:focus-visible { outline-offset: -3px; }
+.atmosphere-lab .scene-label {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+  font-size: 11px;
+  opacity: .8;
+  text-shadow: 0 1px 4px #000;
+}
+.atmosphere-lab .controls { padding: 14px 18px 12px; }
+.atmosphere-lab .zoom-controls { position: absolute; bottom: 12px; right: 12px; display: flex; align-items: center; gap: 3px; padding: 2px; border: 1px solid rgba(255,255,255,.2); border-radius: 5px; background: rgba(0,0,0,.35); color: #fff; }
+.atmosphere-lab .zoom-controls button { width: 32px; min-height: 32px; padding: 0; font-size: 18px; }
+.atmosphere-lab .zoom-controls output { min-width: 40px; text-align: center; float: none; font-size: 11px; opacity: .9; }
+.atmosphere-lab .zoom-controls button:disabled { cursor: default; opacity: .35; }
+.atmosphere-lab .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.atmosphere-lab .presets, .atmosphere-lab .actions { display: flex; gap: 2px; }
+.atmosphere-lab .actions button { opacity: .65; }
+.atmosphere-lab .primary-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.atmosphere-lab label { display: block; margin: 0; font-size: 12px; font-weight: 400; line-height: 1.5; }
+.atmosphere-lab output { float: right; opacity: .65; font-variant-numeric: tabular-nums; }
+.atmosphere-lab input[type="range"] { display: block; width: 100%; height: 18px; margin: 8px 0 0; padding: 0; accent-color: var(--lab-accent); cursor: pointer; }
+.atmosphere-lab details { margin-top: 12px; border: 0; }
+.atmosphere-lab summary { width: fit-content; padding: 0; font-size: 11px; opacity: .65; cursor: pointer; }
+.atmosphere-lab .extra-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; margin-top: 18px; }
+.atmosphere-lab input[type="color"] { float: right; width: 36px; height: 24px; padding: 2px; border: 1px solid var(--lab-line); border-radius: 3px; background: transparent; cursor: pointer; }
+.atmosphere-lab select { float: right; width: auto; height: auto; padding: 2px 4px; font: inherit; font-size: 11px; color: inherit; border: 1px solid var(--lab-line); border-radius: 3px; background: transparent; }
+.atmosphere-lab .status { margin: 12px 0 0; font-size: 10px; line-height: 1.5; opacity: .6; }
+.atmosphere-lab .no-script { position: absolute; inset: 40% 15% auto; text-align: center; font-size: 12px; }
+@media (max-width: 540px) {
+  .atmosphere-lab .viewport { aspect-ratio: 4 / 3; }
+  .atmosphere-lab .controls { padding: 12px; }
+  .atmosphere-lab .toolbar { gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
+  .atmosphere-lab button { font-size: 11px; padding: 5px 7px; }
+  .atmosphere-lab .primary-controls { grid-template-columns: 1fr; gap: 14px; }
+  .atmosphere-lab .extra-controls { grid-template-columns: 1fr; gap: 14px; }
+  .atmosphere-lab .scene-label { left: 12px; right: 12px; font-size: 10px; }
+}

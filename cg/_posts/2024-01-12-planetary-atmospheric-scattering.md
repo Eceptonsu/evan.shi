@@ -17,6 +17,15 @@ In this post, we discuss a project Jerry Lu and I completed for the Advanced Com
 _Due to time constraints, our implementation does not include the complete methodology described in the original paper; specifically, we omitted the illuminance as well as the shadows and light shafts component. Despite these modifications, our implementation still captures the essence of the original work and produces accurate and lovely renderings of the planetary atmosphere without compromising the overall results._
 
 
+## Try the atmosphere yourself
+
+Move the sun, look around, or try a view from orbit. Drag the sky to change your view; scroll or pinch to zoom.
+
+{% include atmosphere-playground.html %}
+
+The playground uses our original precomputed Earth atmosphere. Changing its composition would require new atmosphere tables.
+{:.figcaption}
+
 ## Atmospheric models
 
 Atmospheric scattering primarily consists of two physical phenomena: Rayleigh and Mie scattering, which are the main contributors to the colors of our sky. Rayleigh scattering is an optical phenomenon predominantly responsible for clear blue skies and vibrant orange-red sunsets. As light passes through the air, it interacts with small molecules whose wavelengths are much shorter, resulting in wavelength-sensitive scattering. In contrast, Mie scattering takes place during overcast weather and creates the distinctive Tyndall effect. It occurs when the size of airborne particles, such as those found in fog, smoke, and dust, is approximately equal to or greater than the wavelength of light. Unlike Rayleigh scattering, Mie scattering does not exhibit wavelength sensitivity and has a limited capacity to alter the color of incoming light. A more detailed overview of atmospheric scattering is shown in Figure 1.

@@ -1,0 +1,42 @@
+<section class="atmosphere-lab" id="atmosphere-playground" data-atmosphere aria-label="Atmospheric scattering playground">
+  <div class="viewport">
+    <canvas tabindex="0" aria-label="Interactive atmosphere. Drag or use arrow keys to look around. Scroll, pinch, or use plus and minus to zoom."></canvas>
+    <div class="welcome" data-welcome>
+      <button type="button" data-start>Start exploring</button>
+      <small>Loads 9 MB · runs in your browser</small>
+    </div>
+    <div class="scene-label"><span data-scene>Daylight</span><span>Drag to look · scroll or pinch to zoom</span></div>
+    <div class="zoom-controls" aria-label="View zoom">
+      <button type="button" data-zoom-out aria-label="Zoom out" title="Zoom out (−)">−</button>
+      <output data-zoom-value aria-label="Zoom level">1×</output>
+      <button type="button" data-zoom-in aria-label="Zoom in" title="Zoom in (+)">+</button>
+    </div>
+    <noscript><p class="no-script">Enable JavaScript to explore the atmosphere.</p></noscript>
+  </div>
+  <div class="controls">
+    <div class="toolbar">
+      <div class="presets" aria-label="Scene presets">
+        <button type="button" data-preset="day" aria-pressed="true">Daylight</button>
+        <button type="button" data-preset="sunset" aria-pressed="false">Sunset</button>
+        <button type="button" data-preset="orbit" aria-pressed="false">Orbit</button>
+      </div>
+      <div class="actions"><button type="button" data-reset>Reset</button><button type="button" data-share>Share view</button></div>
+    </div>
+    <div class="primary-controls">
+      <label for="atmosphere-sunElevation">Sun <output for="atmosphere-sunElevation"></output><input id="atmosphere-sunElevation" data-control="sunElevation" type="range" min="-12" max="90" step="0.1" value="25"></label>
+      <label for="atmosphere-altitude">Altitude <output for="atmosphere-altitude"></output><input id="atmosphere-altitude" data-control="altitude" type="range" min="0" max="5" step="0.001" value="0.301"></label>
+      <label for="atmosphere-exposure">Exposure <output for="atmosphere-exposure"></output><input id="atmosphere-exposure" data-control="exposure" type="range" min="0.1" max="40" step="0.1" value="10"></label>
+    </div>
+    <details>
+      <summary>More controls</summary>
+      <div class="extra-controls">
+        <label for="atmosphere-sunAzimuth">Sun direction <output for="atmosphere-sunAzimuth"></output><input id="atmosphere-sunAzimuth" data-control="sunAzimuth" type="range" min="-180" max="180" step="1" value="0"></label>
+        <label for="atmosphere-elevation">Look elevation <output for="atmosphere-elevation"></output><input id="atmosphere-elevation" data-control="elevation" type="range" min="-90" max="90" step="0.1" value="6"></label>
+        <label for="atmosphere-azimuth">Look direction <output for="atmosphere-azimuth"></output><input id="atmosphere-azimuth" data-control="azimuth" type="range" min="-180" max="180" step="1" value="0"></label>
+        <label class="color-control" for="atmosphere-ground">Ground color <input id="atmosphere-ground" data-control="ground" type="color" value="#595959"></label>
+        <label for="atmosphere-resolution">Resolution <select id="atmosphere-resolution" data-control="resolution"><option value="0.75">Balanced</option><option value="0.5">Lower</option><option value="1">Higher</option></select></label>
+      </div>
+    </details>
+    <p class="status" role="status" aria-live="polite" data-status>Choose a scene, then start exploring.</p>
+  </div>
+</section>
