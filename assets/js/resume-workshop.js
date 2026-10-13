@@ -20,37 +20,29 @@
     const events = new AbortController();
     let scene, controls, pending, visible = false, disposed = false, frame = 0, lastShot = -1;
     let detailOpener;
-    let layoutKey='';
     const inerted = new Map();
     mode.hidden = false;
 
-    function present({ progress, shot, point, side, name }) {
-      const width = root.clientWidth, height = root.clientHeight;
+    function present({ progress, shot, name }) {
       if (shot !== lastShot) {
-        // Avoid losing keyboard focus when scrolling away from an annotation.
-        if (annotations[lastShot]?.contains(document.activeElement)) root.focus({ preventScroll:true });
-        annotations.forEach((node,index) => { node.hidden = index !== shot; });
         nav.forEach((node,index) => { if (index === shot) node.setAttribute('aria-current','step'); else node.removeAttribute('aria-current'); });
         root.querySelector('[data-workshop-caption]').textContent = `${String(shot+1).padStart(2,'0')} / ${name}`;
         lastShot = shot;
       }
-      const annotation = annotations[shot];
-      const small = width <= 700;
-      const nextLayout=`${shot}/${width}/${height}/${side}`;
-      if(layoutKey!==nextLayout){
-        const w = annotation.offsetWidth, h = annotation.offsetHeight;
-        const clamp = (n,a,b) => Math.max(a,Math.min(Math.max(a,b),n));
-        const margin=Math.max(30,width*.065);
-        const x = small ? 10 : side==='right'?width-w-margin:margin;
-        const y = small ? height - h - 60 : clamp(height*.48-h*.5,100,height-h-80);
-        annotation.style.left = `${x}px`; annotation.style.top = `${Math.max(75,y)}px`;
-        annotation.style.opacity = '1';layoutKey=nextLayout;
-      }
       root.querySelector('[data-workshop-progress]').style.transform = `scaleX(${progress/(annotations.length-1)})`;
-      scrubber.value=String(root.scrollTop/Math.max(1,root.scrollHeight-root.clientHeight)*(annotations.length-1));
-      scrubber.setAttribute('aria-valuetext',`${name}, section ${shot+1} of ${annotations.length}`);
+      scrubber.value=String(readingProgress());
+      scrubber.setAttribute('aria-valuetext',`${name}, note ${shot+1} of ${annotations.length}`);
     }
-    function progress() { return root.scrollTop / Math.max(1,root.scrollHeight-root.clientHeight) * (annotations.length-1); }
+    // Notes may grow beyond one viewport on short screens or with large text.
+    // Use their actual document positions so navigation still follows the prose.
+    function readingProgress() {
+      for(let index=0;index<annotations.length-1;index++){
+        const start=annotations[index].offsetTop,end=annotations[index+1].offsetTop;
+        if(root.scrollTop<end)return index+Math.max(0,(root.scrollTop-start)/Math.max(1,end-start));
+      }
+      return annotations.length-1;
+    }
+    function progress() { return readingProgress(); }
     function update() { frame = 0; if (visible) scene?.setProgress(progress(),reduced.matches); }
     function schedule() { if (!frame && visible) frame=requestAnimationFrame(update); }
     function setBackgroundInert(value) {
@@ -92,9 +84,14 @@
     }
     function jump(index) {
       controls?.cancel();
-      root.scrollTo({ top:index/(annotations.length-1)*(root.scrollHeight-root.clientHeight), behavior:reduced.matches?'instant':'smooth' });
+      root.scrollTo({ top:annotations[index].offsetTop, behavior:reduced.matches?'instant':'smooth' });
     }
-    function seek(value){controls?.cancel();root.scrollTo({top:Math.max(0,Math.min(7,value))/7*(root.scrollHeight-root.clientHeight),behavior:'instant'});schedule();}
+    function seek(value){
+      controls?.cancel();
+      const position=Math.max(0,Math.min(annotations.length-1,value)),index=Math.floor(position);
+      const start=annotations[index].offsetTop,end=annotations[Math.min(index+1,annotations.length-1)].offsetTop;
+      root.scrollTo({top:start+(end-start)*(position-index),behavior:'instant'});schedule();
+    }
     scrubber.addEventListener('input',()=>seek(Number(scrubber.value)),{signal:events.signal});
     scrubber.addEventListener('keydown',event=>{
       const steps={ArrowLeft:-.1,ArrowDown:-.1,ArrowRight:.1,ArrowUp:.1,PageDown:1,PageUp:-1};

@@ -24,7 +24,7 @@ for(const geometry of geometries){
   if(geometry.index)assert.ok(geometry.index.array.every(index=>index<geometry.attributes.position.count),'Valid mesh indices');
 }
 assert.equal(world.chapters.length,6,'Six story layers share one stage');
-assert.ok(triangles<250000,'Geometry budget includes all instanced detail');
+assert.ok(triangles<280000,'Smoother planet silhouettes stay within the geometry budget, including instanced detail');
 assert.ok(new Box3().setFromObject(world.traveler).getSize(new Vector3()).y>2,'Traveler has full human-scale geometry');
 const visor=world.traveler.getObjectByName('Flush curved visor');
 assert.ok(visor&&visor.geometry.parameters.thetaLength<Math.PI/2,'Visor follows the helmet as a spherical cap');
@@ -76,20 +76,30 @@ for(const p of [.5,1.5,3.5,4.5,5.5]){
 // rotated local bounding boxes of the batched sculptures.
 const gameWorld=world.root.getObjectByName('Game world'),controller=world.root.getObjectByName('Game controller');
 const book=world.root.getObjectByName('Research book'),sheets=world.root.getObjectByName('Suspended research pages');
+const moon=world.root.getObjectByName('Observatory moon'),moonCenter=new Vector3(),moonScale=new Vector3(),bookVertex=new Vector3();
 for(let time=0;time<=185;time+=5){
   world.animate(1,time,false);world.root.updateMatrixWorld(true);
   assert.ok(new Box3().setFromObject(controller,true).min.z-new Box3().setFromObject(gameWorld,true).max.z>.1,'Controller clears the planet, satellite, and rings throughout rotation');
   world.animate(5,time,false);world.root.updateMatrixWorld(true);
   assert.ok(new Box3().setFromObject(sheets,true).min.y-new Box3().setFromObject(book,true).max.y>.2,'Floating research sheets clear the book throughout animation');
+  moon.getWorldPosition(moonCenter);moon.getWorldScale(moonScale);
+  book.traverse(node=>{
+    if(!node.geometry)return;const vertices=node.geometry.attributes.position;
+    for(let i=0;i<vertices.count;i+=17){
+      bookVertex.fromBufferAttribute(vertices,i).applyMatrix4(node.matrixWorld);
+      assert.ok(bookVertex.distanceTo(moonCenter)>2.8*moonScale.x+.5,'Bound notebook stays outside the moon throughout its ambient motion');
+    }
+  });
 }
 world.animate(5,0,true);world.root.updateMatrixWorld(true);
-const paperMeshes=book.children.filter(node=>node.isMesh&&node.material.color?.getHex()===0xf1e7cf);
+const paperMeshes=book.children.filter(node=>node.name==='Bound page block');
+assert.equal(paperMeshes.length,2,'Two solid page volumes support the printed surfaces');
 const down=new Vector3(0,-1,0).transformDirection(book.matrixWorld),ray=new Raycaster();
 let letteringSamples=0;
 book.getObjectByName('Page lettering').traverse(node=>{
   if(!node.geometry)return;
   const vertices=node.geometry.attributes.position;
-  for(let i=0;i<vertices.count;i+=71){
+  for(let i=0;i<vertices.count;i+=31){
     const point=new Vector3().fromBufferAttribute(vertices,i).applyMatrix4(node.matrixWorld);
     ray.set(point.addScaledVector(down,-5),down);
     const hit=ray.intersectObjects(paperMeshes,false)[0];
@@ -150,7 +160,7 @@ assert.ok(displacements[0]<.001&&displacements[1]<displacements[2]&&displacement
 geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());
 assert.ok(peakDraws<125,`Visible draw submission budget: ${peakDraws}`);
 assert.ok(materials.size>0&&[...materials].every(m=>!m.transmission),'No refractive offscreen render pass');
-assert.ok(new Set(SHOTS.map(shot=>shot.side)).size===2,'Captions alternate to suit each composition');
+assert.ok(SHOTS.every(shot=>shot.side==='left'),'Scene consistently leaves space beside the reading column');
 assert.ok(Math.max(...SHOTS.map(s=>s.scale))/Math.min(...SHOTS.map(s=>s.scale))>2,'Substantial scale variation');
 const eventScene=createCosmicEvents();
 for(const pass of COMET_PASSES){
@@ -168,17 +178,18 @@ const artSource=fs.readFileSync(new URL('../assets/js/resume-workshop-art.js',im
 assert.ok(!artSource.includes('projects/'),'Project images are not loaded into the scene');
 const sceneSource=fs.readFileSync(new URL('../assets/js/resume-workshop-scene.js',import.meta.url),'utf8');
 assert.ok(!sceneSource.includes('createProjectParallax'),'No project image overlays');
-for(const name of ['nebula.jpg','veil.png','planet-0.png','planet-1.png','planet-2.png'])assert.ok(fs.statSync(new URL(`../assets/img/workshop/${name}`,import.meta.url)).size>1000,`Baked artwork exists: ${name}`);
+for(const name of ['nebula.jpg','veil.png','planet-0.png','planet-1.png','planet-2.png','earth-color.jpg','lunar-color.jpg','lunar-height.jpg',...['terrain','ocean'].flatMap(kind=>['color','height','roughness'].map(channel=>`${kind}-${channel}.jpg`))])assert.ok(fs.statSync(new URL(`../assets/img/workshop/${name}`,import.meta.url)).size>1000,`Scene artwork exists: ${name}`);
 const html=fs.readFileSync(new URL('../_site/resume/index.html',import.meta.url),'utf8');
 for(const title of ['2K Games','AgentLive Games','Yale University','Submitty','CyberPatriot Club','MDCure'])assert.ok(html.includes(title),`Resume contains ${title}`);
-assert.equal((html.match(/data-workshop-chapter=/g)||[]).length,8,'Eight captions');
+assert.equal((html.match(/data-workshop-chapter=/g)||[]).length,8,'Eight personal notes');
 assert.equal((html.match(/data-workshop-template=/g)||[]).length,6,'Complete resume detail panels');
 assert.ok(!html.includes('data-workshop-detail="credits"')&&!html.includes('data-workshop-template="credits"'),'Credits removed');
 assert.ok(html.includes('data-workshop-scrubber'),'Keyboard-accessible journey slider');
 assert.ok(!html.includes('Take a walk through my work.'),'Removed introductory sentence');
 for(const caption of html.matchAll(/<article[^>]+data-workshop-chapter[\s\S]*?<\/article>/g)){
   const words=caption[0].replace(/<[^>]*>/g,' ').trim().split(/\s+/);
-  assert.ok(words.length<=32,`Compact caption (${words.length} words)`);
+  assert.ok(words.length<=90,`Readable personal note (${words.length} words)`);
+  assert.ok(!/<article[^>]*\shidden/.test(caption[0]),'Notes stay in the document for continuous reading');
 }
 assert.ok(/data-resume-workshop\s+hidden/.test(html),'Classic no-JavaScript default');
 assert.ok(html.includes('resume-workshop.js'),'Scene controller included');

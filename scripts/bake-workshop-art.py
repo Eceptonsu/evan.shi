@@ -15,7 +15,7 @@ def noise(w, h, seed=1):
         result += np.asarray(Image.fromarray(small).resize((w,h), Image.Resampling.BICUBIC))/255*weight
     return result
 
-w,h=2048,1024
+w,h=4096,2048
 y,x=np.mgrid[0:h,0:w]/np.array([h,w])[:,None,None]
 n=noise(w,h)
 band=np.exp(-((y-.5+.19*np.sin(x*6.283)+(n-.5)*.42)/.16)**2)
@@ -43,7 +43,7 @@ rgba[:,:,:3]=[103,125,196];rgba[:,:,3]=np.uint8(alpha*95)
 Image.fromarray(rgba).save(OUT/'veil.png',optimize=True)
 
 # Lit planetary portraits: turbulent bands, broken sea ice, and crater relief.
-size=768
+size=1536
 yy,xx=np.mgrid[-1.6:1.6:complex(size),-1.6:1.6:complex(size)]
 r=np.sqrt(xx*xx+yy*yy); z=np.sqrt(np.clip(1-r*r,0,1))
 for kind in range(3):

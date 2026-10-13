@@ -24,12 +24,12 @@ export function createStoryThread(){
     shapes[7].set([Math.sin(t)*wing,Math.cos(t)*wing*.72,.2*Math.sin(a)],i*3);
   }
   const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.BufferAttribute(shapes[0],3));geometry.setAttribute('destination',new T.BufferAttribute(shapes[1],3));
-  const uniforms={blend:{value:0},time:{value:0},tint:{value:new T.Color('#dac9a2')}};
+  const uniforms={blend:{value:0},time:{value:0},presence:{value:0},tint:{value:new T.Color('#dac9a2')}};
   const colors=['#dac9a2','#7bc9b0','#99e4ea','#cddbaa','#cbb0d6','#e3d9bd','#91e2bf','#91e2bf'].map(color=>new T.Color(color));
   const material=new T.ShaderMaterial({uniforms,transparent:true,depthWrite:false,blending:T.AdditiveBlending,
     vertexShader:`attribute vec3 destination;uniform float blend;uniform float time;varying float pulse;void main(){vec3 p=mix(position,destination,blend);pulse=.65+.25*sin(float(gl_VertexID)*.37+time*.7);vec4 v=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*v;gl_PointSize=clamp(30./max(2.,-v.z),1.2,5.);}`,
-    fragmentShader:`uniform vec3 tint;varying float pulse;void main(){float r=length(gl_PointCoord-.5)*2.;float light=exp(-r*r*4.)*(1.-smoothstep(.65,1.,r));gl_FragColor=vec4(tint,light*pulse*.58);}`
+    fragmentShader:`uniform vec3 tint;uniform float presence;varying float pulse;void main(){float r=length(gl_PointCoord-.5)*2.;float light=exp(-r*r*4.)*(1.-smoothstep(.65,1.,r));gl_FragColor=vec4(tint,light*pulse*.4*presence);}`
   });
   const points=new T.Points(geometry,material);points.name='Continuous story thread';points.position.set(...STORY_CENTER);points.frustumCulled=false;let previous=-1;
-  return {points,animate(progress,time){const {index,blend}=sampleStory(progress);if(index!==previous){geometry.attributes.position.array=shapes[index];geometry.attributes.position.needsUpdate=true;geometry.attributes.destination.array=shapes[index+1];geometry.attributes.destination.needsUpdate=true;previous=index;}uniforms.blend.value=blend;uniforms.time.value=time;uniforms.tint.value.copy(colors[index]).lerp(colors[index+1],blend);}};
+  return {points,animate(progress,time){const {index,blend,weights}=sampleStory(progress);if(index!==previous){geometry.attributes.position.array=shapes[index];geometry.attributes.position.needsUpdate=true;geometry.attributes.destination.array=shapes[index+1];geometry.attributes.destination.needsUpdate=true;previous=index;}uniforms.blend.value=blend;uniforms.time.value=time;uniforms.presence.value=T.MathUtils.smoothstep(progress,.3,.8)*(1-weights[4]);uniforms.tint.value.copy(colors[index]).lerp(colors[index+1],blend);}};
 }

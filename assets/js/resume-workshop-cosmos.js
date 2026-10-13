@@ -6,7 +6,7 @@ import { createDetailedPlanets } from './resume-workshop-planets.js';
 export function createCosmos(textures={}) {
   const root=new T.Group();root.name='Interstellar sky';
   const uniforms={time:{value:0}};
-  const skyMaterial=new T.MeshBasicMaterial({map:textures.nebula||null,color:textures.nebula?0xffffff:0x111a36,side:T.BackSide,depthWrite:false,toneMapped:false});
+  const skyMaterial=new T.MeshBasicMaterial({map:textures.nebula||null,color:textures.nebula?0xb2b7c5:0x111a36,side:T.BackSide,depthWrite:false,toneMapped:false});
   if(textures.nebula){textures.nebula.wrapS=T.RepeatWrapping;textures.nebula.needsUpdate=true;}
   skyMaterial.onBeforeCompile=shader=>{
     shader.uniforms.nebulaTime=uniforms.time;
@@ -60,7 +60,7 @@ export function createCosmos(textures={}) {
   const veils=new T.Group();veils.name='Nebula veils';root.add(veils);
   const driftingVeils=[];
   for(const [x,y,z,phase] of [[-12,5,-38,.3],[18,-5,-50,1.8]]){
-    const veilMaterial=new T.MeshBasicMaterial({map:textures.veil||null,side:T.DoubleSide,transparent:true,depthWrite:false,toneMapped:false,opacity:textures.veil?.95:0,blending:T.AdditiveBlending});
+    const veilMaterial=new T.MeshBasicMaterial({map:textures.veil||null,side:T.DoubleSide,transparent:true,depthWrite:false,toneMapped:false,opacity:textures.veil?.3:0,blending:T.AdditiveBlending});
     veilMaterial.forceSinglePass=true;
     veilMaterial.onBeforeCompile=shader=>{
       shader.uniforms.nebulaTime=uniforms.time;shader.uniforms.nebulaPhase={value:phase};

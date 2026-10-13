@@ -7,6 +7,7 @@ import { createCosmicEvents } from './resume-workshop-events.js';
 import { createCelestialLandmarks } from './resume-workshop-landmarks.js';
 import { createPlanetSurface } from './resume-workshop-surfaces.js';
 import { createStoryThread } from './resume-workshop-story.js';
+import { createResearchBook } from './resume-workshop-book.js';
 
 // Retained sculptural details are batched around the original articulated rig.
 export function createObservatory(textures={}) {
@@ -18,7 +19,7 @@ export function createObservatory(textures={}) {
     dark:physical(0x102833,{metalness:.52,roughness:.25}),
     jade:physical(0x469d94,{metalness:.25,roughness:.22}),
     pink:physical(0xc38890,{metalness:.25,roughness:.3}),
-    glass:physical(0xa6e6db,{roughness:.19,metalness:.65}),
+    glass:new T.MeshPhysicalMaterial({color:0x91b5c1,roughness:.12,metalness:.1,clearcoat:1,clearcoatRoughness:.06,envMapIntensity:.85}),
     ink:physical(0x203946,{metalness:.2,roughness:.6}),
     glow:physical(0x87ecd2,{emissive:0x64d9c0,emissiveIntensity:.75}),
     paper:physical(0xf1e7cf,{roughness:.65,side:T.DoubleSide}),
@@ -63,8 +64,6 @@ export function createObservatory(textures={}) {
   }
   const stage=group(root);stage.name='Shared evolving world';
   const chapters=Array.from({length:6},(_,index)=>{const layer=group(stage);layer.name=`Story layer ${index}`;return layer;});
-  const aperture=group(chapters[0],0,1.9,0);
-  const pearl=sphere(aperture,.54,m.glass);sphere(aperture,.2,m.glow);
   const traveler=group(root,...HOVER_OFFSET);
   traveler.name='Articulated expedition suit';
   const torso=mesh(traveler,surface((u,v)=>{
@@ -143,12 +142,12 @@ export function createObservatory(textures={}) {
 
   // 02: a world-making instrument, with a detailed controller and brass meridians.
   const games=chapters[1],planet=group(games,0,1.94,-.25);
-  sphere(planet,1.08,physical(0xffffff,{map:createPlanetSurface(0x296f71,0xb0bba4),roughness:.58}));
+  mesh(planet,new T.SphereGeometry(1.08,80,48),physical(0xffffff,{map:textures.terrain_color||createPlanetSurface(0x296f71,0xb0bba4),bumpMap:textures.terrain_height||null,bumpScale:.018,roughnessMap:textures.terrain_roughness||null,roughness:1,metalness:0,envMapIntensity:.12}));
   // Parallel latitude bands cannot intersect one another. Their inner edges
   // clear the surface, and the terrain is one texture rather than stacked caps.
   for(const y of [-.6,-.25])ring(planet,Math.sqrt(1.13*1.13-y*y),.009,m.brass,0,y).rotation.x=Math.PI/2;
-  const meridian=ring(planet,1.58,.045,m.brass);meridian.rotation.set(.52,.1,.4);
-  ring(planet,1.76,.024,m.glow).rotation.set(1.0,.25,-.4);
+  const meridian=ring(planet,1.58,.018,m.brass);meridian.rotation.set(.52,.1,.4);
+  ring(planet,1.76,.008,m.chalk).rotation.set(1.0,.25,-.4);
   sphere(planet,.13,m.porcelain,1.9,1.15,0);
   // Small architectural fragments form an imaginary world on the globe.
   for(let i=0;i<16;i++){
@@ -224,31 +223,24 @@ export function createObservatory(textures={}) {
   }
   sphere(ribbon,.23,m.glass);
 
-  // 06: individually curved pages and suspended sheets, encircled by an armillary.
-  const library=chapters[4],book=group(library,0,1.25,0);book.name='Research book';book.rotation.set(.12,0,.08);
-  const pageHeight=u=>.25*Math.sin(u*Math.PI*.95)+.08*u,topPage=.04+13*.018;
-  const pageGeometry=surface((u,v)=>[.065+u*1.43,pageHeight(u),(v-.5)*1.7],36,12);
-  for(const side of [-1,1])for(let i=0;i<14;i++){
-    const page=mesh(book,pageGeometry,i===0?m.brass:m.paper,0,.04+i*.018,0);page.scale.x=side;
-  }
-  round(book,.09,.28,1.8,m.brass,0,.07,0,.035);
-  for(let i=0;i<7;i++)detailTube(book,[[-.075,.15,-.68+i*.22],[-.1,.04,-.68+i*.22],[0,-.04,-.68+i*.22],[.1,.04,-.68+i*.22],[.075,.15,-.68+i*.22]],.014,m.brass);
-  mesh(book,surface((u,v)=>{const x=.62+(v-.5)*.1,z=.55+u*.66,overhang=Math.max(0,z-.85);return [x,topPage+pageHeight((x-.065)/1.43)+.028-overhang*overhang*2,z];},24,3),m.rose);
-  const writtenPage=group(book,0,topPage+.018,0);writtenPage.name='Page lettering';
-  for(const side of [-1,1])for(let line=0;line<7;line++){
-    const pts=[];for(let j=0;j<12;j++){const u=.2+j*.057;pts.push([side*(.065+u*1.43),pageHeight(u),-.63+line*.16]);}tube(writtenPage,pts,.008,m.ink);
-  }
-  const paperOrbit=group(library,0,1.8,0);
+  // A bound notebook and a few smaller leaves occupy the moon's near orbit.
+  const library=chapters[4],{book,printed,boundPages}=createResearchBook();library.add(book);
+  book.rotation.set(.28,-.28,-.12);
+  const paperOrbit=group(library,1,-1.2,-5);
   paperOrbit.name='Suspended research pages';
-  for(let i=0;i<5;i++){
-    const a=(i-2)*.38;
-    const sheet=mesh(paperOrbit,surface((u,v)=>[(u-.5)*.6,.09*Math.sin(u*Math.PI),(v-.5)*.8],16,8),m.paper,Math.sin(a)*2.2,.4+Math.cos(a)*.6,-.8+Math.cos(a)*.35);
-    sheet.rotation.set(.5,a,.3);
-    // Embossed diagrams on each suspended page, with no floating copy.
-    for(let j=0;j<3;j++){
-      const glyph=fineRing(sheet,.065+j*.026,.004,m.brass,0,.095,-.1);glyph.rotation.x=-Math.PI/2;
-    }
-    detailTube(sheet,[[-.19,.07,.12],[.05,.095,.12],[.16,.075,.22]],.006,m.ink);
+  for(let i=0;i<2;i++){
+    const a=1.8+i*.22,leaf=group(paperOrbit,Math.cos(a)*3.7,Math.sin(a)*3.7,1.5);
+    leaf.rotation.set(.36,-.16+i*.12,-.22+i*.16);
+    const sheetMaterial=printed[i].material.clone();sheetMaterial.vertexColors=false;
+    const sheet=mesh(leaf,surface((u,v)=>[(u-.5)*.48,.045*Math.sin(u*Math.PI)+.004,(v-.5)*.64],24,16),sheetMaterial);
+    // Close the curved profile so the paper has a continuous, matching edge.
+    const outline=new T.Shape();
+    for(let j=0;j<=24;j++){const u=j/24,x=(u-.5)*.48,y=.045*Math.sin(u*Math.PI);if(j)outline.lineTo(x,y);else outline.moveTo(x,y);}
+    for(let j=24;j>=0;j--){const u=j/24;outline.lineTo((u-.5)*.48,.045*Math.sin(u*Math.PI)-.008);}
+    outline.closePath();
+    const backing=new T.ExtrudeGeometry(outline,{depth:.64,bevelEnabled:true,bevelThickness:.001,bevelSize:.001,bevelSegments:2});backing.translate(0,0,-.32);
+    const back=mesh(leaf,backing,physical(0xc9c5bb,{roughness:.78}));
+    back.name='Loose page thickness';sheet.name='Printed loose page';
   }
 
 
@@ -309,12 +301,12 @@ export function createObservatory(textures={}) {
   neural.name='Stellar engine';neural.scale.setScalar(2.35);neural.position.set(-.6,1,-4.5);
   clock.scale.setScalar(2.25);clock.position.set(1.4,.8,-.8);
   ribbon.scale.setScalar(2.15);ribbon.position.set(-.3,1,-3.5);
-  book.scale.setScalar(1.45);book.position.x=.5;
-  paperOrbit.scale.setScalar(1.1);paperOrbit.position.set(0,2.9,-1.7);
+  book.scale.setScalar(1.08);book.position.set(2.25,.7,-1.25);
   garden.scale.setScalar(1.55);garden.position.set(-2.7,-.4,-.5);
   ship.scale.setScalar(1.65);ship.position.set(.8,.4,-.7);
-  const landmarks=createCelestialLandmarks(chapters);
-  batchStaticMeshes(root,[pearl,knot,filament,...jets,...landmarks.animated]);
+  const landmarks=createCelestialLandmarks(chapters,textures);
+  batchStaticMeshes(root,[knot,filament,...jets,...landmarks.animated,...boundPages]);
+  book.traverse(node=>{if(node.isMesh)node.castShadow=node.parent.name!=='Page lettering'&&node.name!=='Cloth bookmark';});
   const transitions=chapters.map(layer=>{
     const clones=new Map(),meshes=[];
     layer.traverse(child=>{if(!child.isMesh)return;meshes.push(child);
@@ -357,14 +349,14 @@ export function createObservatory(textures={}) {
       transitions[i].materials.forEach(({material,opacity,depthWrite})=>{material.opacity=opacity*weight;material.depthWrite=depthWrite;if(material.uniforms?.chapterOpacity)material.uniforms.chapterOpacity.value=material.opacity;});
 
     });
-    aperture.rotation.y=progress*.2+Math.sin(t*.16)*.1;pearl.position.y=Math.sin(t*.4)*.06;
     planet.rotation.y=progress*.26+t*.035;
     knot.rotation.y=progress*.4+t*.06;filament.rotation.y=knot.rotation.y;
     clockHand.rotation.z=-progress*3-t*.1;
     gears.forEach((gear,i)=>{gear.rotation.z=(i%2?-1:1)*(progress*.5+t*.12)/(i===1?.75:1);});
     ribbon.rotation.y=progress*.16+t*.06;
-    paperOrbit.rotation.y=progress*.08+Math.sin(t*.18)*.15;
-    book.position.y=1.25+Math.sin(t*.35)*.06;
+    paperOrbit.rotation.y=Math.sin(t*.12)*.025;
+    book.position.y=.7+Math.sin(t*.35)*.035;
+    book.rotation.y=-.28+Math.sin(t*.12)*.035;
     ship.rotation.z=Math.sin(t*.5)*.035;ship.rotation.y=-.25+Math.sin(t*.18)*.12;
     cosmos.animate(t);
     tail.visible=!stationary&&thrust>.03;tailUniforms.energy.value=thrust;

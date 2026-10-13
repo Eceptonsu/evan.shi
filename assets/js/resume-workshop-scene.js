@@ -25,24 +25,32 @@ export async function createWorkshop(container,signal,onContextLost,onFrame) {
   let quality=1;
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.1;
-  renderer.shadowMap.enabled=false;
+  renderer.toneMappingExposure=1;
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   const scene=new THREE.Scene();scene.background=new THREE.Color(0x060919);
   const camera=new THREE.PerspectiveCamera(48,1,.1,250);
   let world,environment,artwork;
   const geometries=new Set(),materials=new Set();
   function collect(){world?.root.traverse(child=>{if(child.geometry)geometries.add(child.geometry);for(const mat of Array.isArray(child.material)?child.material:child.material?[child.material]:[])materials.add(mat);});}
-  function release(){collect();geometries.forEach(g=>g.dispose());const maps=new Set(Object.values(artwork||{}));materials.forEach(m=>{if(m.map)maps.add(m.map);if(m.alphaMap)maps.add(m.alphaMap);m.dispose();});maps.forEach(texture=>texture.dispose());environment?.dispose();renderer.dispose();}
+  function release(){collect();geometries.forEach(g=>g.dispose());const maps=new Set(Object.values(artwork||{}));materials.forEach(m=>{for(const key of ['map','alphaMap','bumpMap','roughnessMap'])if(m[key])maps.add(m[key]);m.dispose();});maps.forEach(texture=>texture.dispose());environment?.dispose();renderer.dispose();}
   try {
     artwork=await loadWorkshopArt();
+    const anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+    Object.values(artwork).forEach(texture=>{texture.anisotropy=anisotropy;});
     if(signal.aborted)throw signal.reason;
-    environment=studioEnvironment(renderer);scene.environment=environment.texture;scene.environmentIntensity=.65;
+    environment=studioEnvironment(renderer);scene.environment=environment.texture;scene.environmentIntensity=.4;
     world=createObservatory(artwork);scene.add(world.root);
-    scene.add(new THREE.HemisphereLight(0xc3ceff,0x3b245e,1.45));
+    scene.add(new THREE.HemisphereLight(0xc3ceff,0x161222,.65));
   } catch(error){release();throw error;}
-  const sun=new THREE.DirectionalLight(0xffdfb9,3.1);
+  const sun=new THREE.DirectionalLight(0xffe8cf,2.8);
+  // Only the notebook casts into this small map; the moon receives its shadow.
+  // This connects the objects spatially without shadowing the entire cosmos.
+  sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
+  Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10,near:1,far:45});
+  sun.shadow.bias=-.00008;sun.shadow.normalBias=.015;
   scene.add(sun,sun.target);
-  const fill=new THREE.DirectionalLight(0x92d9e5,1.65);scene.add(fill,fill.target);
+  const fill=new THREE.DirectionalLight(0xb0c3dd,.65);scene.add(fill,fill.target);
   container.append(renderer.domElement);
   let active=false,disposed=false,frame=0,inViewport=true;
   let target=0,progress=0,still=false,lastTime=0,elapsed=0,flightDirection=1,flightEnergy=0;
@@ -102,7 +110,7 @@ export async function createWorkshop(container,signal,onContextLost,onFrame) {
     if(!still)request();
   }
   function request(){if(!frame&&active&&inViewport&&!disposed)frame=requestAnimationFrame(draw);}
-  function resize(){if(disposed)return;width=container.clientWidth;height=container.clientHeight;if(!width||!height)return;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.35,Math.sqrt(1700000/(width*height)))*quality);renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();lastPresented=-1;request();}
+  function resize(){if(disposed)return;width=container.clientWidth;height=container.clientHeight;if(!width||!height)return;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75,Math.sqrt(2400000/(width*height)))*quality);renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();lastPresented=-1;request();}
   const observer=new ResizeObserver(resize);observer.observe(container);
   const intersection=new IntersectionObserver(entries=>{inViewport=entries[0].isIntersecting;if(inViewport)request();else{cancelAnimationFrame(frame);frame=0;}});intersection.observe(container);
   function contextLost(event){event.preventDefault();onContextLost();}

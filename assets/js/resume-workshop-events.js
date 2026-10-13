@@ -28,10 +28,17 @@ export function createCosmicEvents(){
     fragmentShader:`varying float opacity;varying vec3 tint;void main(){float r=length(gl_PointCoord-.5)*2.;float halo=exp(-r*r*4.)*(1.-smoothstep(.65,1.,r));gl_FragColor=vec4(tint,halo*opacity);}`});
   const comets=new T.Points(geometry,material);comets.name='Comet trails';comets.frustumCulled=false;root.add(comets);
   // One instanced belt adds nearer silhouettes and a sense of passing distance.
-  const rocks=new T.InstancedMesh(new T.IcosahedronGeometry(1,0),new T.MeshStandardMaterial({color:0x688b9c,roughness:.86,metalness:.18}),100);
+  const rockGeometry=new T.IcosahedronGeometry(1,1),vertices=rockGeometry.attributes.position;
+  for(let i=0;i<vertices.count;i++){
+    const x=vertices.getX(i),y=vertices.getY(i),z=vertices.getZ(i);
+    const relief=1+.13*Math.sin(x*7+y*5)*Math.cos(z*8-x*3);
+    vertices.setXYZ(i,x*relief,y*relief,z*relief);
+  }
+  rockGeometry.computeVertexNormals();
+  const rocks=new T.InstancedMesh(rockGeometry,new T.MeshStandardMaterial({color:0x777574,roughness:.96,metalness:0}),48);
   rocks.name='Orbital debris arc';const pose=new T.Object3D();
-  for(let i=0;i<100;i++){
-    const a=i/99*Math.PI*1.65-.5,r=12+Math.sin(i*7.13)*1.3,size=.035+(i%9)*.014;
+  for(let i=0;i<rocks.count;i++){
+    const a=i/(rocks.count-1)*Math.PI*1.65-.5,r=12+Math.sin(i*7.13)*1.3,size=.025+(i%9)*.012;
     pose.position.set(Math.cos(a)*r,Math.sin(a)*r*.4+1,-12+Math.sin(a)*3);
     pose.rotation.set(i*.7,i*1.3,i*.4);pose.scale.set(size,size*.65,size*1.5);pose.updateMatrix();rocks.setMatrixAt(i,pose.matrix);
   }
