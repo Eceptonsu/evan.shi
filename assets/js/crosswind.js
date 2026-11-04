@@ -39,6 +39,16 @@
     ];
     return chart.map(([b,kind,k,end])=>({time:b*beat,end:(end??b)*beat,kind,keys:[...k],done:false,hit:false,armed:false,presses:{}}));
   }
+  function resetFlightView() {
+    elapsed = bank = lift = travelX = altitude = 0;
+    flashes = {};
+    notes = [];
+    startButton.textContent = 'Play';
+    phrase.textContent = customTrack ? 'Your flight' : 'Pull · gust · climb · combine';
+    bar.style.width = '0%';
+    progress.setAttribute('aria-valuenow', '0');
+    draw(0);
+  }
   function rebuildScore() {
     if (!customTrack || running) return;
     const grid = mappingInput.value === 'grid';
@@ -52,6 +62,7 @@
       density: densityInput.value, grid, bpm, offset
     }, customTrack.buffer.duration, approach);
     count.textContent = tempoLabel();
+    resetFlightView();
     const moves = customTrack.chart.length;
     status.textContent = moves ? moves+' moves · ready' : 'No moves at this setting. Try another chart or track.';
     startButton.disabled = demoButton.disabled = !moves;
@@ -102,6 +113,7 @@
     ++loadId;
     if (running) stop();
     customTrack = null;
+    resetFlightView();
     trackName.hidden = originalButton.hidden = settingsPanel.hidden = true;
     trackName.textContent = '';
     count.textContent = tempoLabel();

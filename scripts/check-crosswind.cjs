@@ -138,5 +138,8 @@ async function verifyRecording() {
   click('.cw-original');
   assert.equal(elements['.cw-count'].textContent,'96 BPM');
   assert.equal(elements['.cw-track'].hidden,true);
+  assert.equal(bar.style.width,'0%');
+  assert.equal(elements['.cw-start'].textContent,'Play');
+  assert.equal(elements['.cw-phrase'].textContent,'Pull · gust · climb · combine');
 }
 verifyRecording().then(()=>console.log('Crosswind checks passed: edge alignment, gentler bank and horizon limits, reduced motion, 20/20 demo, keyboard and touch scoring, custom recording playback and cleanup, and original score restoration.')).catch(error=>{console.error(error);process.exitCode=1;});
