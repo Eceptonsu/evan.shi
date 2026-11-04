@@ -1,0 +1,47 @@
+:root { color-scheme: light dark; font-family: Arial, sans-serif; color: light-dark(#302b2c,#eee5e5); background: light-dark(#f4efea,#201c20); }
+body { margin: 0 auto; max-width: 1024px; }
+.site-links { display: flex; justify-content: space-between; padding: 20px clamp(18px,4vw,32px); font-size: 14px; }
+a { color: inherit; text-underline-offset: 3px; }
+h1 { margin: 0; }
+.cw-track { font-size: 13px; overflow-wrap: anywhere; }
+.cw-file { position: relative; display: inline-grid; align-items: center; min-height: 44px; padding: 0 12px; font-size: 13px; cursor: pointer; }
+.cw-file input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.cw-file:focus-within { outline: 2px solid currentColor; outline-offset: 2px; }
+button:not(:disabled) { cursor: pointer; }
+#crosswind { --paper:light-dark(#f4efea,#201c20); --ink:light-dark(#302b2c,#eee5e5); --quiet:light-dark(#6e6064,#bdacb2); --mist:light-dark(#dfcfd0,#463640); --ridge:light-dark(#554e53,#958892); --sail:light-dark(#ad5e78,#e9a9bc); --sail-light:light-dark(#e9b9c4,#f5ced7); --line:light-dark(#51464c,#c7b8bf); color:var(--ink); background:var(--paper); font-family:Arial,sans-serif; overflow:hidden; border-radius:3px; }
+.cw-settings { margin:16px 0 0; font-size:14px; }
+.cw-settings summary { cursor:pointer; padding:10px 0; }
+.cw-fields { border:0; padding:0; margin:4px 0; display:flex; gap:12px; flex-wrap:wrap; }
+.cw-fields legend { position:absolute; clip-path:inset(50%); }
+.cw-fields label { display:grid; gap:4px; font-size:12px; }
+.cw-fields select, .cw-fields input { font:inherit; font-size:16px; padding:4px; max-width:100%; }
+.cw-fields input { width:80px; }
+.cw-settings p { color:var(--quiet); }
+#crosswind * { box-sizing:border-box; }
+#crosswind .cw-top { padding:24px 100px 0 26px; display:flex; align-items:baseline; gap:15px; flex-wrap:wrap; }
+#crosswind .cw-name { font-family:Georgia,serif; font-size:30px; font-weight:400; letter-spacing:-1px; }
+#crosswind .cw-label { color:var(--quiet); font-size:11px; letter-spacing:1.5px; text-transform:uppercase; }
+#crosswind .cw-stage { position:relative; }
+#crosswind canvas { display:block; width:100%; height:440px; }
+#crosswind .cw-hud { position:absolute; left:26px; top:20px; right:26px; display:flex; justify-content:space-between; gap:14px; pointer-events:none; font-size:12px; color:var(--quiet); font-variant-numeric:tabular-nums; }
+#crosswind .cw-controls { padding:0 26px 22px; }
+#crosswind .cw-hands { position:absolute; inset:0; pointer-events:none; }
+#crosswind button { font:inherit; font-size:13px; min-height:44px; border:0; border-radius:3px; background:transparent; color:var(--ink); padding:10px 14px; }
+#crosswind .cw-hand { position:absolute; width:44px; height:44px; transform:translate(-50%,-50%); display:grid; place-items:center; pointer-events:auto; user-select:none; touch-action:none; padding:0; border-radius:50%; }
+#crosswind .cw-hand kbd { display:grid; place-items:center; width:20px; height:20px; color:var(--ink); font:500 12px Arial,sans-serif; opacity:.8; }
+#crosswind .cw-hand[data-key="a"] kbd { transform:translate(-15px,5px); }
+#crosswind .cw-hand[data-key="d"] kbd { transform:translate(15px,5px); }
+#crosswind .cw-hand[data-key="w"] kbd { transform:translate(0,-15px); }
+#crosswind .cw-hand[data-key="s"] kbd { transform:translate(0,16px); }
+#crosswind .cw-hand[aria-pressed="true"] kbd, #crosswind .cw-hand[data-cue="release"] kbd { opacity:1; text-shadow:0 0 10px var(--sail-light); }
+#crosswind .cw-hand span { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+#crosswind .cw-phrase { position:absolute; left:26px; top:51px; color:var(--quiet); font-size:11px; letter-spacing:1px; text-transform:uppercase; }
+#crosswind .cw-hand:disabled { opacity:.8; }
+#crosswind kbd { font:inherit; opacity:.65; }
+#crosswind .cw-instruction { margin:14px 0; text-align:center; color:var(--quiet); font-size:12px; }
+#crosswind .cw-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+#crosswind .cw-start { background:var(--ink); color:var(--paper); }
+#crosswind .cw-sound { margin-left:auto; color:var(--quiet); }
+#crosswind .cw-progress { height:2px; background:color-mix(in srgb,var(--ink) 8%,transparent); }
+#crosswind .cw-progress span { display:block; width:0%; height:100%; background:var(--sail); }
+@media(max-width:440px) { #crosswind .cw-top { padding-left:18px; } #crosswind canvas { height:400px; } #crosswind .cw-controls { padding:0 18px 18px; } #crosswind .cw-hud, #crosswind .cw-phrase { left:18px; right:18px; } #crosswind .cw-label { font-size:11px; letter-spacing:.5px; } }

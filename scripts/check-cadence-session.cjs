@@ -1,0 +1,97 @@
+// Exercise the production session controller with a deterministic audio clock.
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const C = require('../assets/js/cadence-core.js');
+const Lab = require('../assets/js/cadence-lab.js');
+let now = 1, counter = 0;
+const frames = new Map(), storage = new Map(), voices = [];
+class Element {
+  constructor() { this.children = []; this.dataset = {}; this.handlers = {}; this.style = {}; this.parentElement = {}; this.hidden = false; this.disabled = false; this.value = ''; const classes = new Set(); this.classList = { add: (c) => classes.add(c), remove: (c) => classes.delete(c), toggle: (c, on) => on ? classes.add(c) : classes.delete(c) }; }
+  set textContent(v) { this.content = String(v); this.children = []; }
+  get textContent() { return this.content || ''; }
+  setAttribute() {} focus() {} closest() { return null; }
+  append(...els) { for(const el of els)el.parentElement=this; this.children.push(...els); }
+  get options() { return this.children; }
+  remove() { this.parentElement.children=this.parentElement.children.filter(el=>el!==this); }
+  replaceChildren(...els) { this.children = els; }
+  addEventListener(name, fn) { (this.handlers[name] ||= []).push(fn); }
+  async fire(name, extra = {}) { for (const fn of this.handlers[name] || []) fn({ target: this, detail: 0, ...extra }); await new Promise(setImmediate); }
+}
+const html = fs.readFileSync('tools/music/index.html', 'utf8');
+const elements = Object.fromEntries([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => [m[1], new Element()]));
+for (const [id, value] of Object.entries({ difficulty:'easy', song:'joy', section:'0', tuning:'440', pitch:'69', volume:'35', scene:'orbit', 'tune-mode':'drone', 'tap-offset':'0' })) elements[id].value = value;
+elements.pitch.selectedOptions = [{ textContent: 'A4' }];
+const modes = ['melody','rhythm','drone'].map((mode) => { const el = new Element(); el.dataset.mode = mode; return el; });
+const idle = new Element();
+const document = { hidden:false, getElementById: (id) => elements[id], createElement: () => new Element(), querySelector: () => idle, querySelectorAll: (selector) => selector === '.key' ? elements.keyboard.children : modes, addEventListener() {} };
+class AudioContext {
+  constructor() { this.state = 'running'; this.baseLatency = 0; }
+  get currentTime() { return now; }
+  resume() { return Promise.resolve(); }
+  get sampleRate() { return 48000; }
+  createMediaStreamSource() { return { connect(){},disconnect(){} }; }
+  createAnalyser() { return { fftSize:2048,disconnect(){},getFloatTimeDomainData(data){for(let i=0;i<data.length;i++)data[i]=.2*Math.sin(i*2*Math.PI*440/48000);} }; }
+  decodeAudioData() { const samples=new Float32Array(48000*8); for(let i=0;i<samples.length;i++)samples[i]=i%24000<200?.3*Math.sin(i):0; return Promise.resolve({duration:8,sampleRate:48000,length:samples.length,numberOfChannels:1,getChannelData:()=>samples}); }
+  createBufferSource() { return {connect(){},disconnect(){},start(at,offset,duration){voices.push({at,offset,duration,uploaded:true});},stop(){}}; }
+  getOutputTimestamp() { return { contextTime:now, performanceTime:now * 1000 }; }
+  createGain() { return { connect() {}, disconnect() {}, gain: { setValueAtTime() {}, setTargetAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, cancelScheduledValues() {} } }; }
+  createOscillator() { const voice = { connect() {}, disconnect() {}, start(at) { voice.at = at; voices.push(voice); }, stop(at) { voice.end = at; }, frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} } }; return voice; }
+}
+const navigator={mediaDevices:{getUserMedia:async()=>{throw Error('denied');}}};
+vm.runInNewContext(fs.readFileSync('assets/js/cadence.js', 'utf8'), { window: { CadenceCore:C, CadenceLab:{ ...Lab, Scene:class { draw(){} flash(){} } }, AudioContext, addEventListener() {} }, navigator, document, performance: { now: () => now * 1000 }, localStorage: { getItem: (key) => storage.get(key), setItem: (key,value) => storage.set(key,value) }, requestAnimationFrame: (fn) => { frames.set(++counter, fn); return counter; }, cancelAnimationFrame: (id) => frames.delete(id), setTimeout() {} });
+function advance(seconds) { now += seconds; const pending = [...frames.values()]; frames.clear(); pending.forEach((fn) => fn()); }
+(async () => {
+  await modes[0].fire('click');
+  await elements.preview.fire('click');
+  assert.equal(elements.phase.textContent, 'LISTENING');
+  assert.equal(elements.song.disabled, true);
+  assert.ok(voices.length > 8, 'Preview includes accompaniment as well as melody');
+  advance(9);
+  assert.equal(elements.phase.textContent, 'FINISHED');
+  assert.equal(storage.size, 0, 'Listening cannot create a score');
+  await elements.start.fire('click');
+  const parts = C.songPhrases('joy', '0', 'easy');
+  for (let i = 0; i < parts.length; i++) {
+    advance(9);
+    assert.equal(elements.phase.textContent, 'YOUR TURN');
+    for (const [note] of parts[i]) if (note >= 0) await elements.keyboard.children[note].fire('click');
+    if (i + 1 < parts.length) await elements.continue.fire('click');
+  }
+  assert.equal(elements.feedback.textContent, 'Song complete.');
+  const records = JSON.parse(storage.get('cadence-records-v3'));
+  assert.equal(records['melody-easy-joy-0'], 1100, 'Eight notes and two clean-phrase bonuses');
+  assert.equal(elements.start.hidden, false);
+  assert.ok(voices.at(-1).end > now + .3, 'Final played note is allowed to ring');
+  elements.song.value = 'jacques'; await elements.song.fire('change');
+  assert.equal(elements.record.textContent, '0000', 'Songs have independent records');
+  await modes[1].fire('click');
+  await elements.start.fire('click');
+  assert.equal(elements.tap.disabled, false);
+  advance(40);
+  assert.equal(elements.phase.textContent, 'FINISHED', 'Rhythm ends at the selected section boundary');
+  assert.match(elements.feedback.textContent, /0\/4 notes hit/);
+  await modes[2].fire('click'); elements['tune-mode'].value='flight'; await elements['tune-mode'].fire('change'); await elements.start.fire('click');
+  assert.match(elements.feedback.textContent,/permission/, 'Unavailable microphone produces a recoverable error');
+  assert.equal(elements.start.hidden,false);
+  let pendingMic,stopped=0;
+  navigator.mediaDevices.getUserMedia=()=>new Promise(resolve=>{pendingMic=resolve;});
+  await elements.start.fire('click'); await elements.stop.fire('click');
+  pendingMic({getTracks:()=>[{stop:()=>stopped++}]}); await new Promise(setImmediate);
+  assert.equal(stopped,1,'A permission grant after Stop releases the microphone');
+  navigator.mediaDevices.getUserMedia=async()=>({getTracks:()=>[{stop:()=>stopped++}]});
+  await elements.start.fire('click');
+  for(let i=0;i<610;i++)advance(.05);
+  assert.match(elements.feedback.textContent,/6 \/ 6 gates · 600 points/,'Actual pitch controls gate scores');
+  assert.equal(stopped,2,'Finishing Flight releases the microphone');
+  elements.upload.files=[{name:'My tune.wav',size:1024,arrayBuffer:async()=>new ArrayBuffer(8)}];
+  await elements.upload.fire('change');
+  assert.equal(elements.song.value,'upload');
+  assert.equal(elements.headline.textContent,'My tune');
+  await elements.start.fire('click');
+  assert.ok(voices.some(v=>v.uploaded && v.duration===8),'Uploaded audio is actually scheduled for playback');
+  advance(20);assert.equal(elements.phase.textContent,'FINISHED');
+  await elements['remove-upload'].fire('click');assert.equal(elements.song.value,'joy');
+  assert.equal(elements['upload-settings'].hidden,true,'Remove releases the selected upload');
+  console.log('Session checks passed: accompanied preview, complete song, scoring, final-note release, per-song records, and rhythm section completion.');
+})().catch((error) => { console.error(error); process.exitCode = 1; });
