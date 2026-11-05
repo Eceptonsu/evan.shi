@@ -6,17 +6,20 @@
   const progress=root.querySelector('.cw-progress'), bar=progress.querySelector('span');
   const hands=[...root.querySelectorAll('.cw-hand')];
   const phrase=root.querySelector('.cw-phrase');
-  const uploadInput = root.querySelector('.cw-upload');
-  const originalButton = root.querySelector('.cw-original');
   const trackName = root.querySelector('.cw-track');
   const settingsPanel = root.querySelector('.cw-settings');
   const settingsFields = root.querySelector('.cw-fields');
-  const densityInput = root.querySelector('.cw-density');
+  const instruction = root.querySelector('.cw-instruction');
   const mappingInput = root.querySelector('.cw-mapping');
   const bpmInput = root.querySelector('.cw-bpm');
   const offsetInput = root.querySelector('.cw-offset');
   let customTrack = null;
-  let loadId = 0;
+  let difficulty='easy', loading=false;
+  const levels={
+    easy:{window:.32,approach:3,bpm:80,label:'Easy · A / D taps'},
+    medium:{window:.24,approach:2.6,bpm:88,label:'Medium · four directions & holds'},
+    hard:{window:.16,approach:2,bpm:96,label:'Hard · holds, chords & releases'}
+  };
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const atmosphere = .65;
   let width=736,height=440,colors={},running=false,demo=false,sound=true,clockStart=0,audioStart=0,audio=null,master=null,nodes=[],raf=0,generation=0;
@@ -25,8 +28,8 @@
   let elapsed=0,lastFrame=0,bank=0,lift=0,streak=0,hits=0,notes=[],held=emptyHeld(),messageUntil=0,impulseX=0,impulseY=0,bestStreak=0;
   let demoEvents=[],demoIndex=0,flashes={},travelX=0,altitude=0;
   const inputSources=Object.fromEntries(keys.map(k=>[k,new Set()]));
-  const windowSize=.18,approach=2;
-  let beat=.625,duration=50*beat;
+  let windowSize=.32,approach=3;
+  let beat=.75,duration=50*beat;
   function makeChart(){
     const chart=[
       [4,'hold','a',6],[8,'hold','d',10],
@@ -37,14 +40,18 @@
       [36,'tap','a'],[36.5,'tap','d'],[37,'tap','a'],[38,'tap','d'],
       [40,'tap','w'],[42,'tap','s'],[44,'chord','aw'],[46,'chord','dw']
     ];
-    return chart.map(([b,kind,k,end])=>({time:b*beat,end:(end??b)*beat,kind,keys:[...k],done:false,hit:false,armed:false,presses:{}}));
+    const easy=Array.from({length:11},(_,i)=>[4+i*4,'tap',i%2?'d':'a']);
+    const medium=[[4,'tap','a'],[7,'tap','d'],[10,'tap','a'],[13,'tap','d'],[16,'hold','a',18],[21,'hold','d',23],[26,'tap','w'],[29,'tap','s'],[32,'tap','a'],[35,'tap','d'],[38,'hold','w',40],[43,'tap','s'],[46,'tap','d']];
+    return (difficulty==='easy'?easy:difficulty==='medium'?medium:chart).map(([b,kind,k,end])=>({time:b*beat,end:(end??b)*beat,kind,keys:[...k],done:false,hit:false,armed:false,presses:{}}));
   }
   function resetFlightView() {
     elapsed = bank = lift = travelX = altitude = 0;
     flashes = {};
     notes = [];
     startButton.textContent = 'Play';
-    phrase.textContent = customTrack ? 'Your flight' : 'Pull · gust · climb · combine';
+    phrase.textContent = levels[difficulty].label;
+    instruction.textContent=difficulty==='easy'?'A / D · Tap when the dot touches the wingtip.':difficulty==='medium'?'W A S D · Hold ribbons through the tail. Release is automatic.':'W A S D · Tap dots. Hold ribbons, then release at the hollow tail.';
+    hands.forEach(button=>button.hidden=difficulty==='easy' && !['a','d'].includes(button.dataset.key));
     bar.style.width = '0%';
     progress.setAttribute('aria-valuenow', '0');
     draw(0);
@@ -59,7 +66,7 @@
     offsetInput.value = offset;
     customTrack.bpm = grid ? bpm : customTrack.profile.bpm;
     customTrack.chart = window.CrosswindScore.arrange(customTrack.profile, {
-      density: densityInput.value, grid, bpm, offset
+      difficulty, grid, bpm, offset
     }, customTrack.buffer.duration, approach);
     count.textContent = tempoLabel();
     resetFlightView();
@@ -69,58 +76,34 @@
   }
   settingsFields.addEventListener('change',rebuildScore);
   function tempoLabel() {
-    return (customTrack ? customTrack.bpm : 96) + ' BPM';
+    return (customTrack ? customTrack.bpm : levels[difficulty].bpm) + ' BPM';
   }
-  async function loadMusic() {
-    const file = uploadInput.files[0];
-    if (!file) return;
-    const id = ++loadId;
-    if (running) stop();
-    startButton.disabled = demoButton.disabled = true;
-    settingsFields.disabled = true;
-    status.textContent = 'Listening to your track…';
-    try {
-      if (file.size > 30 * 1024 * 1024) throw new Error('Choose a file under 30 MB.');
-      const Audio = window.AudioContext || window.webkitAudioContext;
-      if (!Audio) throw new Error('This browser cannot play local audio.');
-      if (!audio) audio = new Audio();
-      const buffer = await audio.decodeAudioData(await file.arrayBuffer());
-      if (id !== loadId) return;
-      if (buffer.duration < 5 || buffer.duration > 300) throw new Error('Choose a track between 5 seconds and 5 minutes.');
-      const analysis = await window.CadenceLab.analyse(buffer,true);
-      if (id !== loadId) return;
-      const profile = window.CrosswindScore.profile(analysis);
-      customTrack = {buffer, profile, bpm:profile.bpm, chart:[]};
-      bpmInput.value = profile.bpm;
-      offsetInput.value = 0;
-      mappingInput.value = profile.events.length<2 ? 'grid' : 'attacks';
-      trackName.textContent = file.name;
-      trackName.hidden = originalButton.hidden = settingsPanel.hidden = false;
+  document.addEventListener('cadence:track',event=>{
+    if(running)stop();
+    customTrack=event.detail ? {...event.detail,bpm:event.detail.profile.bpm,chart:[]} : null;
+    trackName.hidden=settingsPanel.hidden=!customTrack;
+    trackName.textContent=customTrack?.name||'';
+    if(customTrack){
+      bpmInput.value=customTrack.profile.bpm;
+      offsetInput.value=0;
+      mappingInput.value='attacks';
       rebuildScore();
-    } catch (error) {
-      if (id !== loadId) return;
-      status.textContent = error.name === 'EncodingError' ? 'Try an MP3 or WAV recording.' : error.message;
-    } finally {
-      if (id === loadId) {
-        uploadInput.value = '';
-        settingsFields.disabled = false;
-        startButton.disabled = demoButton.disabled = Boolean(customTrack && !customTrack.chart.length);
-      }
-    }
-  }
-  uploadInput.addEventListener('change', loadMusic);
-  originalButton.addEventListener('click', () => {
-    ++loadId;
-    if (running) stop();
-    customTrack = null;
-    resetFlightView();
-    trackName.hidden = originalButton.hidden = settingsPanel.hidden = true;
-    trackName.textContent = '';
-    count.textContent = tempoLabel();
-    status.textContent = 'Ready to fly';
-    settingsFields.disabled = false;
-    startButton.disabled = demoButton.disabled = false;
-    uploadInput.value = '';
+    }else{resetFlightView();count.textContent=tempoLabel();status.textContent='Ready to fly';}
+  });
+  document.addEventListener('cadence:loading',event=>{
+    loading=event.detail;
+    if(loading && running)stop();
+    startButton.disabled=demoButton.disabled=loading || Boolean(customTrack && !customTrack.chart.length);
+    settingsFields.disabled=loading;
+  });
+  document.addEventListener('cadence:mode',event=>{
+    if(running)stop();
+    difficulty=levels[event.detail.level]?event.detail.level:'easy';
+    windowSize=levels[difficulty].window;approach=levels[difficulty].approach;
+    beat=60/levels[difficulty].bpm;
+    if(customTrack)rebuildScore();
+    else{resetFlightView();count.textContent=tempoLabel();status.textContent='Ready to fly';}
+    if(event.detail.mode==='crosswind')resize();
   });
   // One camera projection for the sail, edge contacts and incoming cues.
   // Note paths stay fixed in flight coordinates; banking changes the view.
@@ -201,7 +184,7 @@
     try{
       const Audio=window.AudioContext || window.webkitAudioContext;if(!Audio)return;
       if(!audio)audio=new Audio();await audio.resume();if(token!==generation || !running)return;
-      master=audio.createGain();master.gain.value=sound?.25:0;master.connect(audio.destination);audioStart=audio.currentTime+.1;clockStart=performance.now()+100;
+      master=audio.createGain();master.gain.value=sound?(customTrack?.85:.25):0;master.connect(audio.destination);audioStart=audio.currentTime+.1;clockStart=performance.now()+100;
       if (customTrack) {
         const recording = audio.createBufferSource();
         recording.buffer = customTrack.buffer;
@@ -225,7 +208,12 @@
     }
   }
   function silence(){nodes.forEach(n=>{try{n.stop();n.disconnect();}catch(_){}});nodes=[];if(master){master.disconnect();master=null;}audioStart=0;}
-  function time(){return Math.max(0,audioStart && audio ? audio.currentTime-audioStart : (performance.now()-clockStart)/1000);}
+  function time(){
+    if(!audioStart || !audio)return Math.max(0,(performance.now()-clockStart)/1000);
+    const stamp=audio.getOutputTimestamp?.();
+    const heard=stamp?.contextTime>0 && stamp.performanceTime>0 ? stamp.contextTime+(performance.now()-stamp.performanceTime)/1000 : audio.currentTime-(audio.baseLatency||0);
+    return Math.max(0,heard-audioStart);
+  }
   function feedback(text,t){status.textContent=text;messageUntil=t+.35;}
   function miss(note,text,t){if(note.done)return;note.done=true;streak=0;feedback(text,t);}
   function hit(note,t){
@@ -235,7 +223,7 @@
     feedback((err<.075?'Clean':'Caught')+' · '+streak+' streak',t);
   }
   function press(key){
-    if(!running || held[key]!==null)return;
+    if(!running || held[key]!==null || difficulty==='easy' && !['a','d'].includes(key))return;
     const t=time();held[key]=t;
     const note=notes.find(n=>!n.done && !n.armed && n.keys.includes(key) && Math.abs(n.time-t)<=windowSize);
     if(note){
@@ -255,7 +243,7 @@
     if(!running)return;
     const note=notes.find(n=>!n.done && n.armed && n.keys.includes(key));
     if(note){
-      if(!cancel && Math.abs(note.end-t)<=windowSize)hit(note,t);
+      if(!cancel && (Math.abs(note.end-t)<=windowSize || difficulty==='medium' && t>=note.end-windowSize))hit(note,t);
       else miss(note,cancel?'Pull interrupted':t<note.end?'Early release':'Late release',t);
     }
     for(const pending of notes)if(!pending.done && pending.kind==='chord')delete pending.presses[key];
@@ -264,11 +252,9 @@
   function inputDown(key,source){if(!running || demo)return;const set=inputSources[key];if(set.has(source))return;set.add(source);if(set.size===1)press(key);}
   function inputUp(key,source,cancel=false){const set=inputSources[key];if(!set.delete(source))return;if(set.size===0)release(key,cancel);}
   function clearInputs(){held=emptyHeld();keys.forEach(k=>inputSources[k].clear());}
-  function chapter(t){
-    const b=t/beat;return b<12?'Pull & release':b<18?'Quick gusts':b<24?'Climb & dive':b<28?'Crosswinds':'Mixed flight';
-  }
   function stop(finished=false){
     settingsFields.disabled = false;
+    document.dispatchEvent(new CustomEvent('cadence:flight',{detail:false}));
     running=false;generation++;cancelAnimationFrame(raf);silence();clearInputs();hands.forEach(b=>{b.disabled=true;b.setAttribute('aria-pressed','false');});
     controlCues(null,elapsed);
     startButton.textContent='Fly again';demoButton.disabled=false;demoButton.textContent='Watch demo';
@@ -277,11 +263,13 @@
     bar.style.width=finished?'100%':bar.style.width;progress.setAttribute('aria-valuenow',finished?'100':String(Math.round(elapsed/duration*100)));draw(elapsed);
   }
   function start(auto){
+    if(loading || root.hidden)return;
     if(running)stop();generation++;running=true;demo=auto;elapsed=0;bank=0;lift=0;travelX=0;altitude=0;impulseX=0;impulseY=0;flashes={};hits=0;streak=0;bestStreak=0;messageUntil=0;lastFrame=performance.now();clockStart=performance.now();
-    beat = customTrack ? 60 / customTrack.bpm : .625;
+    beat = 60 / (customTrack ? customTrack.bpm : levels[difficulty].bpm);
     duration = customTrack ? customTrack.buffer.duration + approach + .25 : 50 * beat;
     notes = customTrack ? customTrack.chart.map(note=>({...note,presses:{}})) : makeChart();
     settingsFields.disabled = true;
+    document.dispatchEvent(new CustomEvent('cadence:flight',{detail:true}));
     clearInputs();demoIndex=0;
     demoEvents=notes.flatMap(n=>n.keys.flatMap(key=>[{t:n.time,key,down:true},{t:n.kind==='hold'?n.end:n.time+.09,key,down:false}])).sort((a,b)=>a.t-b.t);
     bar.style.width='0%';progress.setAttribute('aria-valuenow','0');controlCues(notes[0],0);
@@ -291,6 +279,7 @@
   function frame(now){
     if(!running)return;elapsed=time();const dt=Math.min(.05,(now-lastFrame)/1000);lastFrame=now;
     if(demo)while(demoIndex<demoEvents.length && elapsed>=demoEvents[demoIndex].t){const event=demoEvents[demoIndex++];event.down?press(event.key):release(event.key);}
+    if(difficulty==='medium')for(const n of notes)if(!n.done && n.armed && elapsed>=n.end)hit(n,elapsed);
     for(const n of notes)if(!n.done && elapsed>(n.armed?n.end:n.time)+windowSize)miss(n,n.armed?'Release at the ribbon’s end':'Missed · next wind',elapsed);
     const next=activeNote();
     if(elapsed>messageUntil)status.textContent=(demo?'Demo · ':'')+notePrompt(next,elapsed);
@@ -301,7 +290,7 @@
     bank += (targetBank - bank) * (1 - Math.exp(-dt * response));
     lift+=(Math.max(-1,Math.min(1,desiredY+impulseY))-lift)*(1-Math.exp(-dt*9));impulseX*=Math.exp(-dt*3);impulseY*=Math.exp(-dt*2.4);
     travelX+=bank*dt*115;altitude=Math.max(-100,Math.min(100,altitude+lift*dt*35));
-    phrase.textContent=customTrack ? 'Your flight' : chapter(elapsed);
+    phrase.textContent=levels[difficulty].label;
     count.textContent=demo?'DEMO':hits+' / '+notes.length;const pct=Math.min(100,elapsed/duration*100);bar.style.width=pct+'%';progress.setAttribute('aria-valuenow',String(Math.round(pct)));
     draw(elapsed);if(elapsed>=duration){stop(true);return;}raf=requestAnimationFrame(frame);
   }
@@ -309,7 +298,11 @@
     positionControls();
     ctx.clearRect(0,0,width,height);ctx.fillStyle=colors.paper;ctx.fillRect(0,0,width,height);
     const motion=reduced?0:t;
-    const sky=ctx.createLinearGradient(0,0,0,height);sky.addColorStop(0,colors.paper);sky.addColorStop(1,colors.mist);ctx.globalAlpha=.6;ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);ctx.globalAlpha=1;
+    // The wash breathes with the actual recording, even between playable notes.
+    // The kite and hit targets stay stable so audio response cannot move a target.
+    const songTime=t-approach;
+    const energy=customTrack && running && songTime>=0 ? Math.min(1, (customTrack.profile.envelope[Math.floor(songTime/customTrack.profile.step)]||0)/customTrack.profile.reference) : 0;
+    const sky=ctx.createLinearGradient(0,0,0,height);sky.addColorStop(0,colors.paper);sky.addColorStop(1,colors.mist);ctx.globalAlpha=.45+(reduced?0:energy*.3);ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);ctx.globalAlpha=1;
     // The horizon rolls opposite the aircraft, with deeper layers travelling
     // faster. Accumulated heading persists after the bank eases back to level.
     const world=worldView();
@@ -351,7 +344,7 @@
     drawTiming(t);
   }
   function drawTiming(t){
-    const visible=running?notes.filter(n=>!n.done && n.time-t<=approach):[{keys:['a'],kind:'hold',time:t+.65,end:t+1.6},{keys:['d'],kind:'tap',time:t+1.35,end:t+1.35}];
+    const visible=running?notes.filter(n=>!n.done && n.time-t<=approach):[{keys:['a'],kind:difficulty==='easy'?'tap':'hold',time:t+.65,end:t+1.6},{keys:['d'],kind:'tap',time:t+1.35,end:t+1.35}];
     // No board or lanes. A short, fading wind trace identifies the actual
     // point on the sail; the native button uses that exact same coordinate.
     const activeKeys=new Set(visible.flatMap(n=>n.keys));
@@ -383,9 +376,10 @@
       if(points.length===2)path(points,colors.sail,.35,1);
     });
     keys.forEach(key=>{
+      if(difficulty==='easy' && !['a','d'].includes(key))return;
       const [x,y]=catchPoint(key);
       const flash=flashes[key]===undefined?0:Math.max(0,1-(t-flashes[key])*4);
-      const active=held[key]!==null,edge=edgeTrace(key).map(p=>flightPose().project(...p));
+      const active=held[key]!==null || running && notes.some(n=>!n.done && n.keys.includes(key) && Math.abs((n.armed?n.end:n.time)-t)<windowSize),edge=edgeTrace(key).map(p=>flightPose().project(...p));
       ctx.save();ctx.lineCap='round';if(active || flash){ctx.shadowColor=colors['sail-light'];ctx.shadowBlur=14;}
       path(edge,active || flash?colors['sail-light']:colors.ink,active || flash?1:.65,active || flash?3.5:2);ctx.restore();
     });
@@ -399,12 +393,12 @@
     button.addEventListener('keyup',e=>{if(e.key===' ' || e.key==='Enter'){e.preventDefault();inputUp(key,'button'+e.key);}});
   });
   function keyControl(e){const k=e.key.toLowerCase();return keys.includes(k)?k:({arrowleft:'a',arrowright:'d',arrowup:'w',arrowdown:'s'})[k];}
-  window.addEventListener('keydown',e=>{const key=keyControl(e);if(key && running && !demo){e.preventDefault();if(!e.repeat)inputDown(key,'key'+e.key.toLowerCase());}});
+  window.addEventListener('keydown',e=>{if(e.target?.closest?.('input,select,a') || e.ctrlKey || e.metaKey || e.altKey)return;const key=keyControl(e);if(key && running && !demo){e.preventDefault();if(!e.repeat)inputDown(key,'key'+e.key.toLowerCase());}});
   window.addEventListener('keyup',e=>{const key=keyControl(e);if(key && running && !demo){e.preventDefault();inputUp(key,'key'+e.key.toLowerCase());}});
   window.addEventListener('blur',()=>{if(running)stop();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden && running)stop();});
   startButton.addEventListener('click',()=>running?stop():start(false));demoButton.addEventListener('click',()=>start(true));
-  function applySound(){soundButton.textContent=sound?'Sound on':'Sound off';soundButton.setAttribute('aria-pressed',String(sound));if(master)master.gain.setTargetAtTime(sound?.25:0,audio.currentTime,.03);}
+  function applySound(){soundButton.textContent=sound?'Sound on':'Sound off';soundButton.setAttribute('aria-pressed',String(sound));if(master)master.gain.setTargetAtTime(sound?(customTrack?.85:.25):0,audio.currentTime,.03);}
   try {
     sound = localStorage.getItem('cadence.crosswind.sound') !== 'off';
   } catch {}

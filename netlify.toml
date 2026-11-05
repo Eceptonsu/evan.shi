@@ -5,3 +5,14 @@
 [build.environment]
   JEKYLL_ENV = "production"
   RUBY_VERSION = "2.7.1"
+[[redirects]]
+  from = "/tools/music/*"
+  to = "/projects/cadence/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/tools/"
+  to = "/projects/"
+  status = 301
+  force = true

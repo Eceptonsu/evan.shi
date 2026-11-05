@@ -3,6 +3,9 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const C = require('../assets/js/cadence-core.js');
+global.CadenceLab=require('../assets/js/cadence-lab.js');
+const Score=require('../assets/js/crosswind-score.js');
+const dispatched=[];
 const Lab = require('../assets/js/cadence-lab.js');
 let now = 1, counter = 0;
 const frames = new Map(), storage = new Map(), voices = [];
@@ -16,15 +19,15 @@ class Element {
   remove() { this.parentElement.children=this.parentElement.children.filter(el=>el!==this); }
   replaceChildren(...els) { this.children = els; }
   addEventListener(name, fn) { (this.handlers[name] ||= []).push(fn); }
-  async fire(name, extra = {}) { for (const fn of this.handlers[name] || []) fn({ target: this, detail: 0, ...extra }); await new Promise(setImmediate); }
+  async fire(name, extra = {}) { for (const fn of this.handlers[name] || []) { const result=fn({ target: this, detail: 0, ...extra }); if(this===elements.upload)await result; } await new Promise(setImmediate); }
 }
-const html = fs.readFileSync('tools/music/index.html', 'utf8');
+const html = fs.readFileSync('_projects/cadence.html', 'utf8');
 const elements = Object.fromEntries([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => [m[1], new Element()]));
 for (const [id, value] of Object.entries({ difficulty:'easy', song:'joy', section:'0', tuning:'440', pitch:'69', volume:'35', scene:'orbit', 'tune-mode':'drone', 'tap-offset':'0' })) elements[id].value = value;
 elements.pitch.selectedOptions = [{ textContent: 'A4' }];
-const modes = ['melody','rhythm','drone'].map((mode) => { const el = new Element(); el.dataset.mode = mode; return el; });
+const modes = ['melody','rhythm','drone','crosswind'].map((mode) => { const el = new Element(); el.dataset.mode = mode; return el; });
 const idle = new Element();
-const document = { hidden:false, getElementById: (id) => elements[id], createElement: () => new Element(), querySelector: () => idle, querySelectorAll: (selector) => selector === '.key' ? elements.keyboard.children : modes, addEventListener() {} };
+const document = { hidden:false, getElementById: (id) => elements[id], createElement: () => new Element(), dispatchEvent(e){dispatched.push(e);}, querySelector: () => idle, querySelectorAll: (selector) => selector === '.key' ? elements.keyboard.children : modes, addEventListener() {} };
 class AudioContext {
   constructor() { this.state = 'running'; this.baseLatency = 0; }
   get currentTime() { return now; }
@@ -39,9 +42,11 @@ class AudioContext {
   createOscillator() { const voice = { connect() {}, disconnect() {}, start(at) { voice.at = at; voices.push(voice); }, stop(at) { voice.end = at; }, frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} } }; return voice; }
 }
 const navigator={mediaDevices:{getUserMedia:async()=>{throw Error('denied');}}};
-vm.runInNewContext(fs.readFileSync('assets/js/cadence.js', 'utf8'), { window: { CadenceCore:C, CadenceLab:{ ...Lab, Scene:class { draw(){} flash(){} } }, AudioContext, addEventListener() {} }, navigator, document, performance: { now: () => now * 1000 }, localStorage: { getItem: (key) => storage.get(key), setItem: (key,value) => storage.set(key,value) }, requestAnimationFrame: (fn) => { frames.set(++counter, fn); return counter; }, cancelAnimationFrame: (id) => frames.delete(id), setTimeout() {} });
+vm.runInNewContext(fs.readFileSync('assets/js/cadence.js', 'utf8'), { CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail;}},window: { CrosswindScore:Score, CadenceCore:C, CadenceLab:{ ...Lab, Scene:class { draw(){} flash(){} } }, AudioContext, addEventListener() {} }, navigator, document, performance: { now: () => now * 1000 }, localStorage: { getItem: (key) => storage.get(key), setItem: (key,value) => storage.set(key,value) }, requestAnimationFrame: (fn) => { frames.set(++counter, fn); return counter; }, cancelAnimationFrame: (id) => frames.delete(id), setTimeout() {} });
 function advance(seconds) { now += seconds; const pending = [...frames.values()]; frames.clear(); pending.forEach((fn) => fn()); }
 (async () => {
+  assert.equal(elements.crosswind.hidden,false,'Crosswind opens inside Cadence');
+  assert.equal(elements['practice-panel'].hidden,true);
   await modes[0].fire('click');
   await elements.preview.fire('click');
   assert.equal(elements.phase.textContent, 'LISTENING');
@@ -88,10 +93,15 @@ function advance(seconds) { now += seconds; const pending = [...frames.values()]
   await elements.upload.fire('change');
   assert.equal(elements.song.value,'upload');
   assert.equal(elements.headline.textContent,'My tune');
+  const shared=dispatched.find(e=>e.type==='cadence:track' && e.detail);
+  assert(shared.detail.buffer && shared.detail.profile.events.length,'Crosswind receives the decoded recording and its analysis');
   await elements.start.fire('click');
   assert.ok(voices.some(v=>v.uploaded && v.duration===8),'Uploaded audio is actually scheduled for playback');
   advance(20);assert.equal(elements.phase.textContent,'FINISHED');
+  await modes[3].fire('click');
+  assert.equal(elements.crosswind.hidden,false);assert.equal(elements['practice-panel'].hidden,true);
+  assert.equal(elements['active-track'].textContent,'My tune','Switching games preserves the recording');
   await elements['remove-upload'].fire('click');assert.equal(elements.song.value,'joy');
-  assert.equal(elements['upload-settings'].hidden,true,'Remove releases the selected upload');
+  assert.equal(dispatched.filter(e=>e.type==='cadence:track').at(-1).detail,null,'Remove releases the recording in both games');
   console.log('Session checks passed: accompanied preview, complete song, scoring, final-note release, per-song records, and rhythm section completion.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -11,6 +11,8 @@
   // register even when a bass note underneath it keeps overall volume steady.
   function profile(analysis) {
     const {envelope, texture, step} = analysis;
+    const flux=analysis.flux;
+    const fluxReference=flux ? Math.max(.001,quantile(flux.filter(v=>v>.001),.75)) : 1;
     const audible = envelope.filter(level => level > .00003);
     if (!audible.length) throw new Error('No audible music found. Choose another recording.');
     const reference = quantile(audible, .9);
@@ -20,7 +22,7 @@
       const past = i - 2;
       const growth = Math.max(0, envelope[i] - (envelope[past] || 0));
       const brightness = Math.max(0, texture[i] - (texture[past] || 0));
-      attack[i] = (growth + .65 * brightness) / (reference * .1 + (envelope[past] || 0));
+      attack[i] = (growth + .65 * brightness) / (reference * .1 + (envelope[past] || 0)) + (flux ? flux[i]/fluxReference*.7 : 0);
     }
     const events = [];
     let background = 0;
@@ -28,9 +30,13 @@
       const value = attack[i];
       const threshold = Math.max(.085, background * 2.1);
       background += (Math.min(value, 3) - background) * .035;
-      if (value < threshold || envelope[i] < floor || value < (attack[i-1] || 0) || value <= (attack[i+1] || 0)) continue;
-      const peak = Math.max(...envelope.slice(i, i+6));
-      const event = {frame:i, time:i*step, peak, strength:Math.log1p(value) + .35 * peak/reference, bright:texture[i]/Math.max(floor,envelope[i])};
+      if (value < threshold || Math.max(...envelope.slice(i,i+3)) < floor || value < (attack[i-1] || 0) || value <= (attack[i+1] || 0)) continue;
+      // A sharp cutoff also spreads spectral energy. It is a release, not a
+      // new note, when volume falls immediately after an otherwise steady frame.
+      if((envelope[i+2]||0)<envelope[i]*.5 && envelope[i]<=(envelope[i-2]||0)*1.05)continue;
+      const frame=envelope[i]>=floor ? i : i+envelope.slice(i,i+3).findIndex(v=>v>=floor);
+      const peak = Math.max(...envelope.slice(frame, frame+6));
+      const event = {frame, time:frame*step, peak, strength:Math.log1p(value) + .35 * peak/reference, bright:texture[frame]/Math.max(floor,envelope[frame])};
       const last = events[events.length-1];
       if (last && event.time-last.time < .11) {
         if (event.strength > last.strength) events[events.length-1] = event;
@@ -76,7 +82,8 @@
 
   function arrange(song,settings,duration,leadIn) {
     const source=settings.grid ? pulseEvents(song,settings.bpm) : song.events;
-    const gap={calm:.65,flow:.38,swift:.255}[settings.density]||.38;
+    const level=settings.difficulty||'hard';
+    const gap={easy:1.1,medium:.65,hard:.32}[level];
     // Strongest nearby onset wins. Density changes which accents to follow,
     // without moving their timestamps or dropping the beginning of a phrase.
     const occupied=new Map(), selected=[];
@@ -95,14 +102,14 @@
       const next=selected[index+1]?.time??duration;
       const sustain=Math.min(event.sustain,next-event.time-.15,duration-event.time-.05);
       const note={time,end:time,kind:'tap',keys:[left?'a':'d'],done:false,hit:false,armed:false,presses:{}};
-      if(sustain>=.48){
+      if(sustain>=.6 && level!=='easy'){
         note.kind='hold';
         note.end=Math.min(leadIn+duration,time+sustain);
-      } else if(index>1 && event.strength>=highAccent && event.strength>middle*1.14 && event.time-lastChord>=1.6 && settings.density!=='calm'){
+      } else if(index>5 && level==='hard' && event.strength>=highAccent && event.strength>middle*1.14 && event.time-lastChord>=2){
         note.kind='chord';note.keys.push(event.bright>=brightThreshold?'w':'s');lastChord=event.time;
-      } else if(index>1 && event.bright>brightThreshold*1.25 && event.strength>middle){
+      } else if(index>3 && level!=='easy' && event.bright>brightThreshold*1.25 && event.strength>middle){
         note.keys=['w'];
-      } else if(index>1 && event.bright<brightThreshold*.55 && event.peak>song.reference*.85){
+      } else if(index>3 && level!=='easy' && event.bright<brightThreshold*.55 && event.peak>song.reference*.85){
         note.keys=['s'];
       }
       left=!left;

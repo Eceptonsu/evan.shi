@@ -64,3 +64,19 @@ footer { display:flex; justify-content:space-between; gap:15px; border-top:1px s
 @media(max-width:600px){.game-canvas{height:270px}.song-picker{gap:12px}.upload-settings{padding:12px}.scene-controls{gap:10px;font-size:10px}}
 @media(max-width:750px) { .song-picker { gap:15px; padding:15px; } #song-credit { margin-left:0; } }
 @media(max-width:480px) { .intro { padding:24px 0; } .intro h1 { max-width:none; font-size:40px; } .song-picker { gap:12px; } .song-picker label { gap:6px; } .song-picker select { font-size:12px; max-width:155px; } #song-credit { flex:1; text-align:right; } }
+
+/* One home for every Cadence game. */
+:root { --paper:#f4efea; --ink:#302b2c; --line:#d5c7ca; --orange:#a85c76; --muted:#6e6064; }
+.modes { display:grid; grid-template-columns:repeat(4,1fr); }
+.modes button { min-width:0; }
+.session-settings { display:flex; align-items:center; gap:18px; flex-wrap:wrap; padding:18px 0; font-size:13px; }
+.session-settings label { display:flex; align-items:center; gap:8px; }
+.session-settings select { background:transparent; border:0; border-bottom:1px solid var(--line); padding:7px; }
+.session-settings button { border:0; background:none; text-decoration:underline; min-height:44px; }
+#active-track { color:var(--muted); overflow-wrap:anywhere; flex:1; min-width:100px; }
+#music-status:empty { display:none; }
+#music-status { flex-basis:100%; color:var(--muted); }
+#crosswind { border:1px solid var(--line); --paper:#f4efea; --ink:#302b2c; --quiet:#6e6064; --mist:#dfcfd0; --ridge:#554e53; --sail:#ad5e78; --sail-light:#e9b9c4; --line:#51464c; }
+#crosswind .cw-name { margin:0; }
+#crosswind .cw-top { padding-top:18px; }
+@media(max-width:650px) { .modes { grid-template-columns:repeat(2,1fr); } .modes button { padding:13px 8px; font-size:17px; } .session-settings { gap:10px; } .intro { padding:20px 0; } }

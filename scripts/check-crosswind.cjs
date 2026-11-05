@@ -1,18 +1,18 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
-const html=fs.readFileSync(require('path').join(__dirname,'../tools/music/crosswind/index.html'),'utf8');
+const html=fs.readFileSync(require('path').join(__dirname,'../_projects/cadence.html'),'utf8');
 let source=fs.readFileSync(require('path').join(__dirname,'../assets/js/crosswind.js'),'utf8');new vm.Script(source);
-source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},snapshot(){return {hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
+source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},snapshot(){return {hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
 let now=0,frames=[],width=736,height=440,arcs=[],resize,draws=0;const listeners={};
 function element(name){return {name,style:{},dataset:{},textContent:'',disabled:false,attrs:{},events:{},addEventListener(k,fn){this.events[k]=fn;},setAttribute(k,v){this.attrs[k]=v;},remove(){},setPointerCapture(){},getBoundingClientRect(){return {width,height};}};}
 const context=new Proxy({}, {get(o,k){if(k==='createLinearGradient')return ()=>({addColorStop(){}});return (...args)=>{args.forEach(a=>{if(typeof a==='number')assert(Number.isFinite(a),k+' finite argument');});if(k==='arc')arcs.push(args);draws++;};},set(o,k,v){o[k]=v;return true;}});
-const selectors=['canvas','.cw-status','.cw-count','.cw-start','.cw-demo','.cw-sound','.cw-progress','.cw-phrase','.cw-track','.cw-upload','.cw-original','.cw-settings','.cw-fields','.cw-bpm','.cw-mapping','.cw-offset','.cw-density'];
+const selectors=['canvas','.cw-status','.cw-count','.cw-start','.cw-demo','.cw-sound','.cw-progress','.cw-phrase','.cw-track','.cw-upload','.cw-original','.cw-settings','.cw-fields','.cw-bpm','.cw-mapping','.cw-offset','.cw-instruction'];
 const elements=Object.fromEntries(selectors.map(s=>[s,element(s)]));const bar=element('span');elements['.cw-progress'].querySelector=()=>bar;elements.canvas.getContext=()=>context;
 const hands=['a','w','s','d'].map(key=>{const e=element('hand');e.dataset.key=key;e.label=element('span');e.querySelector=()=>e.label;return e;});
 const root=element('root');root.querySelector=s=>{assert(elements[s],s);return elements[s];};root.querySelectorAll=()=>hands;root.appendChild=()=>{};
-const document={getElementById:id=>{assert(html.includes('id="'+id+'"'));return root;},createElement:()=>element('probe'),addEventListener(k,v){listeners[k]=v;},hidden:false};
+const document={getElementById:id=>{assert(html.includes('id="'+id+'"'));return root;},createElement:()=>element('probe'),addEventListener(k,v){listeners[k]=v;},dispatchEvent(e){listeners[e.type]?.(e);},hidden:false};
 const window={addEventListener(k,v){listeners[k]=v;}};
-const sandbox={document,window,console,Math,Number,String,Promise,performance:{now:()=>now},devicePixelRatio:1,matchMedia:()=>({matches:false,addEventListener(){}}),getComputedStyle:()=>({color:'#aabbcc'}),ResizeObserver:class{constructor(fn){resize=fn;}observe(){resize();}},requestAnimationFrame(fn){frames.push(fn);return frames.length;},cancelAnimationFrame(){frames=[];}};
-vm.runInNewContext(source,sandbox);const api=sandbox.testStudy;
+const sandbox={CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail;}},document,window,console,Math,Number,String,Promise,performance:{now:()=>now},devicePixelRatio:1,matchMedia:()=>({matches:false,addEventListener(){}}),getComputedStyle:()=>({color:'#aabbcc'}),ResizeObserver:class{constructor(fn){resize=fn;}observe(){resize();}},requestAnimationFrame(fn){frames.push(fn);return frames.length;},cancelAnimationFrame(){frames=[];}};
+vm.runInNewContext(source,sandbox);const api=sandbox.testStudy;document.dispatchEvent({type:"cadence:mode",detail:{mode:"crosswind",level:"hard"}});
 function step(sec){now=sec*1000;const queue=frames;frames=[];queue.forEach(fn=>fn(now));}
 function advance(seconds){const target=now/1000+seconds;while(now/1000+1/60<target)step(now/1000+1/60);step(target);}
 function click(sel){elements[sel].events.click();}
@@ -49,7 +49,7 @@ for(const w of [320,440,441,736]){
   assert(api.catchPoint('a')[0]<api.catchPoint('w')[0] && api.catchPoint('d')[0]>api.catchPoint('w')[0]);
   assert(api.catchPoint('w')[1]<api.catchPoint('a')[1] && api.catchPoint('s')[1]>api.catchPoint('a')[1]);
 }
-assert(!html.includes('laneLayout'));assert(!html.includes('grid-template-columns'));assert(!html.includes("fillText('HIT'"));
+assert(!html.includes('laneLayout'));assert(!html.includes("fillText('HIT'"));
 assert.equal(api.makeChart().length,20);assert.equal(new Set(api.makeChart().map(n=>n.kind)).size,3);
 start();at(2.5);key('keydown','a');assert(api.snapshot().notes[0].armed);at(3.6);assert.equal(hands[0].label.textContent,'Hold…');at(3.72);assert.equal(hands[0].label.textContent,'Release');at(3.75);key('keyup','a');assert.equal(api.snapshot().hits,1);
 assert(api.flightPose().tilt>.15 && api.flightPose().tilt<.20,'sustained left input banks between 9 and 12 degrees');
@@ -82,9 +82,19 @@ click('.cw-sound');assert.equal(elements['.cw-sound'].textContent,'Sound off');a
 // Reduced-motion preference keeps scoring and edge positions functional while
 // suppressing camera travel, zoom and most roll.
 sandbox.matchMedia=()=>({matches:true,addEventListener(){}});vm.runInNewContext(source,sandbox);
-const quiet=sandbox.testStudy;quiet.setPose(-1,1);
+const quiet=sandbox.testStudy;document.dispatchEvent({type:"cadence:mode",detail:{mode:"crosswind",level:"hard"}});quiet.setPose(-1,1);
 assert(Math.abs(quiet.flightPose().tilt)<.05);assert(Math.abs(quiet.worldView().roll)<.02);assert.equal(quiet.worldView().pan,0);assert.equal(quiet.worldView().pitch,0);assert.equal(quiet.worldView().zoom,1);
 async function verifyRecording() {
+  document.dispatchEvent({type:'cadence:mode',detail:{mode:'crosswind',level:'easy'}});
+  assert.equal(quiet.makeChart().length,11);
+  assert(quiet.makeChart().every(n=>n.kind==='tap' && ['a','d'].includes(n.keys[0])));
+  start();at(3-.28);tap('a');assert.equal(quiet.snapshot().hits,1,'Easy allows a 280ms timing error');
+  document.dispatchEvent({type:'cadence:mode',detail:{mode:'crosswind',level:'medium'}});
+  assert(!quiet.snapshot().running,'changing mode or level stops the previous flight');
+  assert(!quiet.makeChart().some(n=>n.kind==='chord'));
+  start();const hold=quiet.snapshot().notes.find(n=>n.kind==='hold');at(hold.time);key('keydown',hold.keys[0]);at(hold.end+.05);
+  assert(hold.hit,'Medium completes a held ribbon without an exact release');
+  document.dispatchEvent({type:'cadence:mode',detail:{mode:'crosswind',level:'hard'}});
   const rate=12000,duration=13,samples=new Float32Array(rate*duration);
   for(let n=0;n<23;n++){
     if(n===5 || n===19 || (n>=12 && n<=15))continue;
@@ -94,27 +104,31 @@ async function verifyRecording() {
     for(let i=0;i<length;i++)samples[start+i]=volume*Math.sin(2*Math.PI*200*i/rate);
   }
   const recording = {duration,sampleRate:rate,length:samples.length,numberOfChannels:1,getChannelData(){return samples;}};
-  let recordingStart, recordingStopped = false;
+  let recordingStart, recordingStopped = false, stamp=null;
+  const gains=[];
   window.AudioContext = class {
     currentTime = 4;
     async resume() {}
     async decodeAudioData() { return recording; }
-    createGain() { return {gain: {}, connect(){}, disconnect(){}}; }
+    getOutputTimestamp(){return stamp;}
+    createGain() { const gain={gain: {}, connect(){}, disconnect(){}};gains.push(gain);return gain; }
     createBufferSource() {
       return {connect(){}, disconnect(){}, start(when){recordingStart=when;}, stop(){recordingStopped=true;}};
     }
   };
   window.CadenceLab=require('../assets/js/cadence-lab.js');
   vm.runInNewContext(fs.readFileSync(require('path').join(__dirname,'../assets/js/crosswind-score.js'),'utf8'),sandbox);
-  elements['.cw-density'].value='flow';
-  const picker = elements['.cw-upload'];
-  picker.files = [{name:'practice.wav',size:16000,arrayBuffer:async()=>new ArrayBuffer(16)}];
-  await picker.events.change();
+  const analysis=await window.CadenceLab.analyse(recording,true);
+  const profile=window.CrosswindScore.profile(analysis);
+  document.dispatchEvent({type:'cadence:track',detail:{buffer:recording,profile,name:'practice.wav'}});
   assert.equal(elements['.cw-track'].textContent,'practice.wav');
   assert.equal(elements['.cw-count'].textContent,'120 BPM');
   click('.cw-start');
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(recordingStart,6.1,'playback includes the two-second visual lead-in');
+  assert.equal(gains.at(-1).gain.value,.85,'Custom audio uses an audible playback level');
+  stamp={contextTime:4.6,performanceTime:now};
+  assert(Math.abs(quiet.time()-.5)<1e-8,'Gameplay follows the audible output clock');stamp=null;
   const chart=quiet.snapshot().notes;
   assert(Math.abs(chart[0].time-2.8)<.025,'chart respects silent intro and first attack');
   assert.equal(new Set(chart.map(note=>note.kind)).size,3);
@@ -131,15 +145,11 @@ async function verifyRecording() {
   elements['.cw-fields'].events.change();
   assert.equal(elements['.cw-count'].textContent,'60 BPM');
   click('.cw-start');assert(!quiet.snapshot().notes.some(n=>n.time>=8.9 && n.time<10.9));click('.cw-start');
-  picker.files=[{name:'too-large.wav',size:32*1024*1024}];
-  await picker.events.change();
-  assert.equal(elements['.cw-start'].disabled,false);
-  assert.equal(elements['.cw-track'].textContent,'practice.wav','invalid replacement keeps the usable recording');
-  click('.cw-original');
+  document.dispatchEvent({type:'cadence:track',detail:null});
   assert.equal(elements['.cw-count'].textContent,'96 BPM');
   assert.equal(elements['.cw-track'].hidden,true);
   assert.equal(bar.style.width,'0%');
   assert.equal(elements['.cw-start'].textContent,'Play');
-  assert.equal(elements['.cw-phrase'].textContent,'Pull · gust · climb · combine');
+  assert.equal(elements['.cw-phrase'].textContent,'Hard · holds, chords & releases');
 }
 verifyRecording().then(()=>console.log('Crosswind checks passed: edge alignment, gentler bank and horizon limits, reduced motion, 20/20 demo, keyboard and touch scoring, custom recording playback and cleanup, and original score restoration.')).catch(error=>{console.error(error);process.exitCode=1;});

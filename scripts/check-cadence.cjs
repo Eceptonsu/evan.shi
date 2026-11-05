@@ -38,7 +38,7 @@ for (const id of Object.keys(C.songs)) {
     assert.deepEqual(C.songTargets(id, section, 'medium'), arrangement.events.filter((e) => e.note >= 0).map((e) => e.beat), 'Medium taps follow the actual melody');
   }
 }
-const html = fs.readFileSync(path.join(__dirname, '../tools/music/index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../_projects/cadence.html'), 'utf8');
 const js = fs.readFileSync(path.join(__dirname, '../assets/js/cadence.js'), 'utf8');
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
 assert.equal(new Set(ids).size, ids.length, 'No duplicate DOM IDs');

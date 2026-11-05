@@ -1,13 +1,8 @@
-:root { color-scheme: light dark; font-family: Arial, sans-serif; color: light-dark(#302b2c,#eee5e5); background: light-dark(#f4efea,#201c20); }
-body { margin: 0 auto; max-width: 1024px; }
-.site-links { display: flex; justify-content: space-between; padding: 20px clamp(18px,4vw,32px); font-size: 14px; }
-a { color: inherit; text-underline-offset: 3px; }
-h1 { margin: 0; }
 .cw-track { font-size: 13px; overflow-wrap: anywhere; }
 .cw-file { position: relative; display: inline-grid; align-items: center; min-height: 44px; padding: 0 12px; font-size: 13px; cursor: pointer; }
 .cw-file input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .cw-file:focus-within { outline: 2px solid currentColor; outline-offset: 2px; }
-button:not(:disabled) { cursor: pointer; }
+#crosswind button:not(:disabled) { cursor: pointer; }
 #crosswind { --paper:light-dark(#f4efea,#201c20); --ink:light-dark(#302b2c,#eee5e5); --quiet:light-dark(#6e6064,#bdacb2); --mist:light-dark(#dfcfd0,#463640); --ridge:light-dark(#554e53,#958892); --sail:light-dark(#ad5e78,#e9a9bc); --sail-light:light-dark(#e9b9c4,#f5ced7); --line:light-dark(#51464c,#c7b8bf); color:var(--ink); background:var(--paper); font-family:Arial,sans-serif; overflow:hidden; border-radius:3px; }
 .cw-settings { margin:16px 0 0; font-size:14px; }
 .cw-settings summary { cursor:pointer; padding:10px 0; }

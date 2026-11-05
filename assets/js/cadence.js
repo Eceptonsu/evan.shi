@@ -62,13 +62,21 @@
     $('tap').classList.remove('flash');
   }
   function choose(next) {
-    clear(); mode = next; $('song-picker').hidden = mode === 'drone'; text('song-credit', song().credit);
+    clear(); mode = next;
+    $('crosswind').hidden = mode !== 'crosswind';
+    $('practice-panel').hidden = mode === 'crosswind';
+    $('active-track').textContent = mode==='crosswind' ? uploaded?.name||'First flight' : mode==='drone' ? 'Concert pitch' : song().title;
+    $('remove-upload').hidden = !uploaded;
+    $('difficulty').parentElement.hidden = false;
+    document.dispatchEvent(new CustomEvent('cadence:mode', {detail:{mode,level:level()}}));
     document.querySelectorAll('[data-mode]').forEach((el) => el.setAttribute('aria-pressed', el.dataset.mode === mode));
+    if(mode === 'crosswind') return;
+    $('song-picker').hidden = mode === 'drone'; text('song-credit', song().credit);
     for (const name of ['melody', 'rhythm', 'drone']) $(`${name}-view`).hidden = name !== mode;
     $('keyboard').hidden = mode !== 'melody'; $('tap').hidden = mode !== 'rhythm';
     $('tap').disabled = true; $('difficulty').parentElement.hidden = mode === 'drone';
     $('record').parentElement.hidden = mode === 'drone' || isUpload(); $('score').parentElement.hidden = mode === 'drone';
-    text('mode-label', mode === 'melody' ? '01 / REPEAT' : mode === 'rhythm' ? '02 / SYNC' : '03 / SUSTAIN');
+    text('mode-label', mode === 'melody' ? '02 / REPEAT' : mode === 'rhythm' ? '03 / SYNC' : '04 / SUSTAIN');
     text('phase', 'READY'); text('start', mode === 'drone' ? ($('tune-mode').value === 'flight' ? 'Start microphone' : 'Start drone') : 'Play ↗');
     $('upload-settings').hidden = !uploaded || mode === 'drone';
     $('difficulty').parentElement.hidden = mode === 'drone' && $('tune-mode').value !== 'flight';
@@ -297,25 +305,30 @@
   }
   $('upload').addEventListener('change',async()=>{
     const file=$('upload').files?.[0];if(!file)return;
-    const token=++uploadGeneration;clear();$('upload-settings').hidden=false;text('upload-status','Opening audio…');$('upload').disabled=true;$('start').disabled=true;$('preview').disabled=true;
+    const token=++uploadGeneration;clear();
+    document.dispatchEvent(new CustomEvent('cadence:loading',{detail:true}));
+    text('music-status','Listening to your music…');$('upload').disabled=true;$('start').disabled=true;$('preview').disabled=true;
     try {
       if(file.size>30*1024*1024)throw Error('Use a file under 30 MB.');
       await sound();
       const buffer=await audio.ctx.decodeAudioData(await file.arrayBuffer());
       if(buffer.duration<5 || buffer.duration>300)throw Error('Choose a track between 5 seconds and 5 minutes.');
       text('upload-status','Building chart…');
-      const analysis=await Lab.analyse(buffer);
+      const analysis=await Lab.analyse(buffer,true);
+      const profile=window.CrosswindScore.profile(analysis);
+      analysis.times=profile.events.map(event=>event.time);analysis.bpm=profile.bpm;
       if(token!==uploadGeneration)return;
-      uploaded={buffer,analysis,name:file.name.replace(/\.[^.]+$/,'')};
+      uploaded={buffer,analysis,profile,name:file.name.replace(/\.[^.]+$/,'')};
       let option=[...$('song').options].find(option=>option.value==='upload');
       if(!option){option=document.createElement('option');option.value='upload';$('song').append(option);}
       option.textContent=uploaded.name;$('song').value='upload';$('section').value='all';$('upload-bpm').value=analysis.bpm;
-      text('upload-status','Local only · auto chart is approximate.');choose('rhythm');
-    } catch(error) { if(token===uploadGeneration)text('upload-status',error.message?.startsWith('Use a')||error.message?.startsWith('Choose a')?error.message:'Could not read this file. Try MP3 or WAV.'); }
-    finally { if(token===uploadGeneration){$('upload').value='';$('upload').disabled=false;$('start').disabled=mode==='melody'&&isUpload();$('preview').disabled=false;} }
+      document.dispatchEvent(new CustomEvent('cadence:track',{detail:uploaded}));
+      text('music-status','');text('upload-status','Local only · auto chart is approximate.');choose(mode==='crosswind'?'crosswind':'rhythm');
+    } catch(error) { if(token===uploadGeneration)text('music-status',error.message?.match(/^(Use a|Choose a|No audible)/)?error.message:'Could not read this file. Try MP3 or WAV.'); }
+    finally { if(token===uploadGeneration){$('upload').value='';$('upload').disabled=false;$('start').disabled=mode==='melody'&&isUpload();$('preview').disabled=false;document.dispatchEvent(new CustomEvent('cadence:loading',{detail:false}));} }
   });
   $('remove-upload').addEventListener('click',()=>{
-    uploadGeneration++;clear();uploaded=null;const option=[...$('song').options].find(o=>o.value==='upload');option?.remove();$('song').value='joy';$('section').value='all';choose(mode);
+    uploadGeneration++;clear();uploaded=null;const option=[...$('song').options].find(o=>o.value==='upload');option?.remove();$('song').value='joy';$('section').value='all';text('music-status','');document.dispatchEvent(new CustomEvent('cadence:track',{detail:null}));choose(mode);
   });
   names.forEach((name, i) => {
     const key = document.createElement('button'); key.className = 'key'; key.setAttribute('aria-label', `${name === 'C↑' ? 'C5' : name + '4'}, keyboard ${shortcuts[i].toUpperCase()}`);
@@ -350,5 +363,8 @@
   $('pitch').addEventListener('change', droneDisplay); $('tuning').addEventListener('change', droneDisplay);
   function interrupt() { generation++; if (run && run.phase !== 'over') finish('Stopped while away.'); else audio?.stop(); }
   document.addEventListener('visibilitychange', () => { if (document.hidden) interrupt(); }); window.addEventListener('pagehide', interrupt);
-  choose('rhythm');
+  document.addEventListener('cadence:flight',event=>{
+    for(const id of ['difficulty','upload','remove-upload'])$(id).disabled=event.detail;
+  });
+  choose('crosswind');
 }());

@@ -40,6 +40,47 @@
     let last=-1;
     return source.filter(t=> { if(t<.15 || t>=duration-.15 || t-last<gap)return false; last=t; return true; });
   }
+  // Positive spectral change catches percussion and new pitches in a full mix,
+  // where compression can leave the overall RMS almost constant.
+  async function spectralFlux(channels, rate, length, hop) {
+    const size=512, stride=Math.max(1,Math.round(rate/11025));
+    const real=new Float64Array(size), imaginary=new Float64Array(size), previous=new Float64Array(size/2);
+    const window=Float64Array.from({length:size},(_,i)=>.5-.5*Math.cos(2*Math.PI*i/(size-1)));
+    const flux=[];
+    for(let center=0;center<length;center+=hop){
+      real.fill(0);imaginary.fill(0);
+      for(let i=0;i<size;i++){
+        const index=center+(i-size/2)*stride;
+        if(index>=0 && index<length){
+          // Analyze one channel to avoid cancellation from opposite stereo phase.
+          real[i]=channels[0][index]*window[i];
+        }
+      }
+      for(let i=1,j=0;i<size;i++){
+        let bit=size>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;
+        if(i<j)[real[i],real[j]]=[real[j],real[i]];
+      }
+      for(let span=2;span<=size;span*=2){
+        const angle=-2*Math.PI/span, wr=Math.cos(angle),wi=Math.sin(angle);
+        for(let base=0;base<size;base+=span){
+          let ar=1,ai=0;
+          for(let j=0;j<span/2;j++){
+            const a=base+j,b=a+span/2,br=real[b]*ar-imaginary[b]*ai,bi=real[b]*ai+imaginary[b]*ar;
+            real[b]=real[a]-br;imaginary[b]=imaginary[a]-bi;real[a]+=br;imaginary[a]+=bi;
+            const next=ar*wr-ai*wi;ai=ar*wi+ai*wr;ar=next;
+          }
+        }
+      }
+      let change=0;
+      for(let bin=2;bin<size/2;bin++){
+        const magnitude=Math.log1p(Math.hypot(real[bin],imaginary[bin])*10);
+        change+=Math.max(0,magnitude-previous[bin]);previous[bin]=magnitude;
+      }
+      flux.push(change/(size/2));
+      if(flux.length%250===0)await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    return flux;
+  }
   async function analyse(buffer, includeDynamics=false) {
     const channels=Array.from({length:buffer.numberOfChannels},(_,i)=>buffer.getChannelData(i));
     const hop=Math.round(buffer.sampleRate*.01), envelope=[], texture=[];
@@ -58,7 +99,13 @@
     }
     const times=peaks(envelope,hop/buffer.sampleRate);
     const result={times,bpm:bpmFromPeaks(times)};
-    if(includeDynamics)Object.assign(result,{envelope,texture,step:hop/buffer.sampleRate});
+    if(includeDynamics){
+      // Prefer the channel with the most signal, including one-sided recordings.
+      const energy=channels.map(channel=>{let total=0;for(let i=0;i<channel.length;i+=128)total+=channel[i]*channel[i];return total;});
+      const strongest=channels[energy.indexOf(Math.max(...energy))];
+      const flux=await spectralFlux([strongest],buffer.sampleRate,buffer.length,hop);
+      Object.assign(result,{envelope,texture,flux,step:hop/buffer.sampleRate});
+    }
     return result;
   }
   class Scene {
