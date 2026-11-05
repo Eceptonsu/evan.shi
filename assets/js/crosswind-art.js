@@ -125,15 +125,16 @@
     if(!open){g.beginPath();g.moveTo(-19,-5);g.quadraticCurveTo(-11,-3,-6,-1);g.globalAlpha=.3;g.lineWidth=.7;g.stroke();}
     g.restore();
   }
-  function kite(ctx,{cx,cy,scale,tilt},flex=0,colors=palette){
+  function kite(ctx,{cx,cy,scale,tilt},flex=0,colors=palette,motion={}){
     ctx.save();ctx.translate(cx,cy);ctx.rotate(tilt);ctx.scale(scale,scale);
-    const sail=ctx.createLinearGradient(-140,-45,100,80);sail.addColorStop(0,colors['sail-light']);sail.addColorStop(.56,colors.sail);sail.addColorStop(1,colors['sail-light']);
+    const lean=motion.lean||0,belly=lean*30,rise=(motion.lift||0)*12;
+    const sail=ctx.createLinearGradient(-140,-45,100,80);sail.addColorStop(0,colors['sail-light']);sail.addColorStop(.56+lean*.16,colors.sail);sail.addColorStop(1,colors['sail-light']);
     ctx.fillStyle=sail;ctx.beginPath();ctx.moveTo(0,-65);ctx.bezierCurveTo(-42,-54,-103,-16+flex,-151,33);ctx.bezierCurveTo(-94,21,-50,33,-12,64);ctx.quadraticCurveTo(0,49,12,64);ctx.bezierCurveTo(50,33,94,21,151,33);ctx.bezierCurveTo(103,-16-flex,42,-54,0,-65);ctx.closePath();ctx.fill();
     // Translucent panels, a bent leading edge, seams and a quiet trailing hem.
-    ctx.fillStyle=colors['sail-light'];ctx.globalAlpha=.42;ctx.beginPath();ctx.moveTo(0,-65);ctx.quadraticCurveTo(-18,2,-12,64);ctx.quadraticCurveTo(-48,29,-92,26);ctx.quadraticCurveTo(-62,-18,0,-65);ctx.fill();ctx.globalAlpha=.26;ctx.beginPath();ctx.moveTo(0,-65);ctx.quadraticCurveTo(51,-12,151,33);ctx.quadraticCurveTo(87,5,12,64);ctx.quadraticCurveTo(22,1,0,-65);ctx.fill();ctx.globalAlpha=1;
+    ctx.fillStyle=colors['sail-light'];ctx.globalAlpha=.42-lean*.12;ctx.beginPath();ctx.moveTo(0,-65);ctx.quadraticCurveTo(-18+belly,2-rise,-12,64);ctx.quadraticCurveTo(-48,29,-92,26);ctx.quadraticCurveTo(-62,-18,0,-65);ctx.fill();ctx.globalAlpha=.26+lean*.12;ctx.beginPath();ctx.moveTo(0,-65);ctx.quadraticCurveTo(51,-12,151,33);ctx.quadraticCurveTo(87,5,12,64);ctx.quadraticCurveTo(22+belly,1-rise,0,-65);ctx.fill();ctx.globalAlpha=1;
     ctx.strokeStyle=colors.paper;ctx.globalAlpha=.35;ctx.lineWidth=.7;
-    [-1,1].forEach(side=>{for(let j=1;j<5;j++){ctx.beginPath();ctx.moveTo(0,-65);ctx.quadraticCurveTo(side*j*18,-16,side*(12+j*27),35-j*3-side*flex*j/4);ctx.stroke();}});
-    ctx.globalAlpha=.5;ctx.strokeStyle=colors.ink;ctx.lineWidth=.65;ctx.beginPath();ctx.moveTo(-151,33);ctx.bezierCurveTo(-103,-16+flex,-42,-54,0,-65);ctx.bezierCurveTo(42,-54,103,-16-flex,151,33);ctx.stroke();ctx.globalAlpha=.2;ctx.beginPath();ctx.moveTo(0,-65);ctx.quadraticCurveTo(4,0,0,55);ctx.stroke();ctx.globalAlpha=1;ctx.restore();
+    [-1,1].forEach(side=>{for(let j=1;j<5;j++){ctx.beginPath();ctx.moveTo(0,-65);ctx.quadraticCurveTo(side*j*18+belly,-16-rise,side*(12+j*27),35-j*3-side*flex*j/4);ctx.stroke();}});
+    ctx.globalAlpha=.5;ctx.strokeStyle=colors.ink;ctx.lineWidth=.65;ctx.beginPath();ctx.moveTo(-151,33);ctx.bezierCurveTo(-103,-16+flex,-42,-54,0,-65);ctx.bezierCurveTo(42,-54,103,-16-flex,151,33);ctx.stroke();ctx.globalAlpha=.2;ctx.beginPath();ctx.moveTo(0,-65);ctx.quadraticCurveTo(4+belly,0-rise,0,55);ctx.stroke();ctx.globalAlpha=1;ctx.restore();
   }
   root.CrosswindArt={mountain,drawMountain,scenery,kite,petal,palette};
 })(window);

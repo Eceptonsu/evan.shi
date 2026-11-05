@@ -31,7 +31,9 @@ for(const w of [320,440,441,736]){
   width=w;height=w<=440?400:440;resize();const paths=[];
   for(const lean of [-1,0,1])for(const climb of [-1,0,1]){
     api.setPose(lean,climb);arcs=[];petals=[];api.draw(1);
-    paths.push(JSON.stringify(['a','w','s','d'].map(k=>[api.gustPosition({keys:[k],time:2},1).x,api.gustPosition({keys:[k],time:2},1).y])));
+    paths.push(JSON.stringify(['a','w','s','d'].flatMap(k=>[0,.5,.9,1.5,1.9,2,2.1].map(t=>{
+      const p=api.gustPosition({keys:[k],time:2},t);return [p.x,p.y];
+    }))));
   ['a','w','s','d'].forEach((k,i)=>{
     const target=api.catchPoint(k),touch=hands[i],sail=api.flightPose().project(...api.sailPoints[k]);
     assert.equal(target[0],sail[0]);assert.equal(target[1],sail[1]);
@@ -41,12 +43,14 @@ for(const w of [320,440,441,736]){
     assert(origin.x>=8 && origin.x<=w-8 && origin.y>=40 && origin.y<=height-8,'approach remains visible through banking');
     const head=api.gustPosition(note,3),tail=api.gustPosition(note,4.25,k,note.end);
     assert(Math.abs(head.x-target[0])<1e-9);assert(Math.abs(head.y-target[1])<1e-9);assert(Math.abs(tail.x-target[0])<1e-9);assert(Math.abs(tail.y-target[1])<1e-9);
-    const beforeJoin=api.gustPosition(note,2.1-1e-5),afterJoin=api.gustPosition(note,2.1+1e-5);
-    assert(Math.hypot(afterJoin.x-beforeJoin.x,afterJoin.y-beforeJoin.y)<.01,'final approach joins without a position jump');
+    for(let t=1;t<3.1;t+=.1){
+      const p=api.gustPosition(note,t),q=api.gustPosition(note,t+.1);
+      assert(Math.abs(q.x-p.x+v[0]*.1/2)<1e-8 && Math.abs(q.y-p.y+v[1]*.1/2)<1e-8,'petals move at a constant speed through contact');
+    }
     for(const other of ['a','w','s','d'].slice(i+1)){const p=api.catchPoint(other);assert(Math.abs(p[0]-target[0])>=44 || Math.abs(p[1]-target[1])>=44,'44px touch areas must not overlap');}
   });
   }
-  assert(paths.every(p=>p===paths[0]),'banking must not move incoming petals outside the final approach');
+  assert(paths.every(p=>p===paths[0]),'banking and climbing cannot change any part of a petal path');
   api.setPose(0,0);
   assert(api.catchPoint('a')[0]<api.catchPoint('w')[0] && api.catchPoint('d')[0]>api.catchPoint('w')[0]);
   assert(api.catchPoint('w')[1]<api.catchPoint('a')[1] && api.catchPoint('s')[1]>api.catchPoint('a')[1]);
@@ -70,7 +74,7 @@ for(const speed of [.72,1.45]){
 api.setSpeed(1);
 assert.equal(api.makeChart().length,20);assert.equal(new Set(api.makeChart().map(n=>n.kind)).size,3);
 start();at(2.5);key('keydown','a');assert(api.snapshot().notes[0].armed);at(3.6);assert.equal(hands[0].label.textContent,'Hold…');at(3.72);assert.equal(hands[0].label.textContent,'Release');at(3.75);key('keyup','a');assert.equal(api.snapshot().hits,1);
-assert(api.flightPose().tilt>.14 && api.flightPose().tilt<.18,'sustained left input retains a readable bank');
+assert(api.snapshot().bank<-.8 && api.flightPose().tilt===0,'steering banks the flight without rotating the contact frame');
 assert(api.worldView().roll<0 && Math.abs(api.worldView().roll)<.05,'horizon rolls less than three degrees');
 assert(api.snapshot().travelX<-80,'sustained turn travels through the world');
 at(5);key('keydown','d');at(5.1);key('keyup','d');assert.equal(api.snapshot().notes[1].hit,false,'early release fails');

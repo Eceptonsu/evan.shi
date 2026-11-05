@@ -3,8 +3,20 @@
   const art=root.CrosswindArt,colors=art.palette;
   const reduced=root.matchMedia('(prefers-reduced-motion: reduce)').matches;
   class Scene {
-    constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.flashAt=-99;this.success=false;this.note=3;this.last=null;new ResizeObserver(()=>{if(this.last)this.draw(...this.last);}).observe(canvas);}
-    flash(now,success,note=3){this.flashAt=now;this.success=success;this.note=note;}
+    constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.flashAt=-99;this.success=false;this.anchor=null;this.last=null;this.pulseFrame=0;new ResizeObserver(()=>{if(this.last)this.draw(...this.last);}).observe(canvas);}
+    clear(){cancelAnimationFrame(this.pulseFrame);this.flashAt=-99;this.anchor=null;}
+    flash(now,success,anchor=null){
+      this.clear();this.flashAt=now;this.success=success;this.anchor=anchor;
+      if(!anchor || reduced)return;
+      // Let the final note's ripple fade after the session loop has stopped.
+      const started=performance.now();
+      const pulse=()=>{
+        const age=(performance.now()-started)/1000;
+        if(this.last){const args=this.last.slice();args[1]=Math.max(args[1],now+age);this.draw(...args);}
+        if(age<.5)this.pulseFrame=requestAnimationFrame(pulse);
+      };
+      this.pulseFrame=requestAnimationFrame(pulse);
+    }
     draw(kind,now,targets=[],beat=.6,cents=null,flight=null){
       this.last=[kind,now,targets,beat,cents,flight];
       const box=this.canvas.getBoundingClientRect(),w=box.width,h=box.height;
@@ -29,20 +41,13 @@
         if(!targets.length){
           for(let i=0;i<3;i++)art.petal(g,w*(.42+i*.08),h*.42+Math.sin(i*1.5)*8,-.3+i*.16,false,colors.sail,colors.paper);
         }
-        if(glow && !reduced){
-          const x=w*(.22+this.note*.08),y=h*.66;
+        const petal=this.anchor?.(),rect=petal?.getBoundingClientRect();
+        if(glow && !reduced && rect?.width && rect?.height){
+          const x=rect.left+rect.width/2-box.left,y=rect.bottom-box.top+12;
           g.strokeStyle=colors.sail;g.lineWidth=1.1;
           for(let i=0;i<3;i++){g.globalAlpha=glow*(.22-i*.04);g.beginPath();g.ellipse(x,y,14+(1-glow)*50+i*12,4+(1-glow)*12+i*3,0,0,Math.PI*2);g.stroke();}
           g.globalAlpha=1;
         }
-      }else{
-        // Quiet sound waves frame the concert note without competing with it.
-        for(let i=0;i<3;i++){
-          const breath=reduced?0:Math.sin(now*.8-i*.7)*3;
-          g.strokeStyle=colors.sail;g.globalAlpha=.19-i*.035;g.lineWidth=1;
-          g.beginPath();g.ellipse(w*.5,h*.51,Math.min(w*.32,145)+i*16+breath,42+i*9,0,0,Math.PI*2);g.stroke();
-        }
-        g.globalAlpha=1;
       }
     }
   }

@@ -108,14 +108,11 @@
     else{resetFlightView();count.textContent=tempoLabel();status.textContent='Ready to fly';}
     if(event.detail.mode==='crosswind')resize();
   });
-  // The kite moves in the foreground. Incoming wind has its own steady frame;
-  // it must not inherit the roll or translation of a key press.
-  function flightPose(lean=bank,boost=lift){
-    const reach=reduced?0:(airspeed-1);
-    const scale=Math.min((width-132)/302,1.08)*(1-reach*.045),tilt=-lean*(reduced?.025:.17);
-    const cx=width*.5+lean*Math.min(50,width*.06)*(reduced?.1:1),cy=height*.61-boost*(reduced?3:18)-reach*8;
-    const c=Math.cos(tilt),s=Math.sin(tilt);
-    return {cx,cy,scale,tilt,project(x,y){return [cx+(x*c-y*s)*scale,cy+(x*s+y*c)*scale];},unproject(x,y){const dx=(x-cx)/scale,dy=(y-cy)/scale;return [dx*c+dy*s,-dx*s+dy*c];}};
+  // Timing is an invariant screen-space frame. Steering changes the cloth and
+  // scenery, never the distance to a contact or a petal's velocity.
+  function flightPose(){
+    const scale=Math.min((width-132)/302,1.08),cx=width*.5,cy=height*.61;
+    return {cx,cy,scale,tilt:0,project:(x,y)=>[cx+x*scale,cy+y*scale]};
   }
   // S is the exact midpoint of the quadratic hem: (64 + 2*49 + 64)/4.
   const sailPoints={a:[-151,33],d:[151,33],w:[0,-65],s:[0,56.5]};
@@ -123,27 +120,18 @@
     return flightPose().project(...sailPoints[key]);
   }
   function approachVector(key){
-    const target=windFrame().project(...sailPoints[key]);
+    const target=catchPoint(key);
     if(key==='a')return [-Math.min(width*.16,target[0]-40),-height*.16];
     if(key==='d')return [Math.min(width*.16,width-40-target[0]),-height*.16];
     if(key==='w')return [0,-Math.min(height*.27,target[1]-82)];
     return [0,Math.min(height*.23,height-28-target[1])];
   }
-  function windFrame(){
-    const scale=Math.min((width-132)/302,1.08);
-    return {project:(x,y)=>[width*.5+x*scale,height*.61+y*scale]};
-  }
   function positionControls(){
     const pose=flightPose();hands.forEach(button=>{const [x,y]=catchPoint(button.dataset.key);button.style.left=x+'px';button.style.top=y+'px';button.style.transform='translate(-50%,-50%) rotate('+pose.tilt+'rad)';});
   }
   function gustPosition(note,t,key=note.keys[0],edge=note.time){
-    const base=windFrame().project(...sailPoints[key]),v=approachVector(key),remaining=(edge-t)/approach;
-    const target=catchPoint(key);
-    // Keep most of the approach completely independent of steering. A smooth
-    // final curve joins the actual sail edge, including held-note releases.
-    const u=Math.max(0,Math.min(1,1-(edge-t)/.9)),join=u*u*(3-2*u);
-    return {x:base[0]+v[0]*remaining+(target[0]-base[0])*join,
-      y:base[1]+v[1]*remaining+(target[1]-base[1])*join,target};
+    const target=catchPoint(key),v=approachVector(key),remaining=(edge-t)/approach;
+    return {x:target[0]+v[0]*remaining,y:target[1]+v[1]*remaining,target};
   }
   function worldView(){return {roll:bank*(reduced?0:.045),pan:reduced?0:travelX,pitch:reduced?0:altitude+lift*32,zoom:reduced?1:1-lift*.055};}
   function advanceTravel(dt){
@@ -388,7 +376,7 @@
     drawPassage();
     ctx.restore();
     const {cx,cy,scale,tilt}=flightPose();
-    art.kite(ctx,{cx,cy,scale,tilt},clothFlex(),colors);
+    art.kite(ctx,{cx,cy,scale,tilt},clothFlex(),colors,{lean:reduced?bank*.2:bank,lift:reduced?lift*.2:lift});
     // A fine, slightly irregular weave gives the otherwise sparse scene material.
     ctx.fillStyle=colors.ink;ctx.globalAlpha=.025*atmosphere;
     for(let i=0;i<420;i++){const x=(Math.sin(i*127.1)*43758.5453)%1,y=(Math.sin(i*311.7)*96321.912)%1;ctx.fillRect(Math.abs(x)*width,Math.abs(y)*height,1,1);}ctx.globalAlpha=1;

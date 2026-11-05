@@ -23,9 +23,9 @@ class Element {
 }
 const html = fs.readFileSync('_projects/cadence.html', 'utf8');
 const elements = Object.fromEntries([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => [m[1], new Element()]));
-for (const [id, value] of Object.entries({ difficulty:'easy', song:'joy', section:'0', tuning:'440', pitch:'69', volume:'35', 'tune-mode':'drone' })) elements[id].value = value;
+for (const [id, value] of Object.entries({ difficulty:'easy', song:'joy', section:'0', tuning:'440', pitch:'69', volume:'35' })) elements[id].value = value;
 elements.pitch.selectedOptions = [{ textContent: 'A4' }];
-const modes = ['melody','drone','crosswind'].map((mode) => { const el = new Element(); el.dataset.mode = mode; return el; });
+const modes = ['melody','sustain','crosswind'].map((mode) => { const el = new Element(); el.dataset.mode = mode; return el; });
 const idle = new Element();
 const document = { hidden:false, getElementById: (id) => elements[id], createElement: () => new Element(), dispatchEvent(e){dispatched.push(e);}, querySelector: () => idle, querySelectorAll: (selector) => selector === '.key' ? elements.keyboard.children : modes, addEventListener() {} };
 class AudioContext {
@@ -42,7 +42,7 @@ class AudioContext {
   createOscillator() { const voice = { connect() {}, disconnect() {}, start(at) { voice.at = at; voices.push(voice); }, stop(at) { voice.end = at; }, frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} } }; return voice; }
 }
 const navigator={mediaDevices:{getUserMedia:async()=>{throw Error('denied');}}};
-vm.runInNewContext(fs.readFileSync('assets/js/cadence.js', 'utf8'), { CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail;}},window: { CadenceArt:{Scene:class {draw(){} flash(){}}}, CrosswindScore:Score, CadenceCore:C, CadenceLab:{ ...Lab, Scene:class { draw(){} flash(){} } }, AudioContext, addEventListener() {} }, navigator, document, performance: { now: () => now * 1000 }, localStorage: { getItem: (key) => storage.get(key), setItem: (key,value) => storage.set(key,value) }, requestAnimationFrame: (fn) => { frames.set(++counter, fn); return counter; }, cancelAnimationFrame: (id) => frames.delete(id), setTimeout() {} });
+vm.runInNewContext(fs.readFileSync('assets/js/cadence.js', 'utf8'), { CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail;}},window: { CadenceArt:{Scene:class {draw(){} flash(){} clear(){}}}, CrosswindScore:Score, CadenceCore:C, CadenceLab:{ ...Lab, Scene:class { draw(){} flash(){} } }, AudioContext, addEventListener() {} }, navigator, document, performance: { now: () => now * 1000 }, localStorage: { getItem: (key) => storage.get(key), setItem: (key,value) => storage.set(key,value) }, requestAnimationFrame: (fn) => { frames.set(++counter, fn); return counter; }, cancelAnimationFrame: (id) => frames.delete(id), setTimeout() {} });
 function advance(seconds) { now += seconds; const pending = [...frames.values()]; frames.clear(); pending.forEach((fn) => fn()); }
 (async () => {
   assert.equal(elements.crosswind.hidden,false,'Crosswind opens inside Cadence');
@@ -71,7 +71,12 @@ function advance(seconds) { now += seconds; const pending = [...frames.values()]
   assert.ok(voices.at(-1).end > now + .3, 'Final played note is allowed to ring');
   elements.song.value = 'jacques'; await elements.song.fire('change');
   assert.equal(elements.record.textContent, '0000', 'Songs have independent records');
-  await modes[1].fire('click'); elements['tune-mode'].value='flight'; await elements['tune-mode'].fire('change'); await elements.start.fire('click');
+  await modes[1].fire('click');
+  assert(!html.includes('tune-mode'),'Sustain has no mode switch');
+  assert.equal(elements['flight-canvas'].hidden,false,'Sustain opens directly into flight');
+  assert.equal(elements['volume-control'].hidden,true,'Flight has no drone volume control');
+  assert.equal(elements.start.textContent,'Start microphone');
+  await elements.start.fire('click');
   assert.match(elements.feedback.textContent,/permission/, 'Unavailable microphone produces a recoverable error');
   assert.equal(elements.start.hidden,false);
   let pendingMic,stopped=0;
