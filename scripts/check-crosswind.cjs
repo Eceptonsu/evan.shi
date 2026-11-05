@@ -2,16 +2,18 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const html=fs.readFileSync(require('path').join(__dirname,'../_projects/cadence.html'),'utf8');
 let source=fs.readFileSync(require('path').join(__dirname,'../assets/js/crosswind.js'),'utf8');new vm.Script(source);
 source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={worldPoint,advanceTravel,time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},setSpeed(v){airspeed=v;},snapshot(){return {forward,airspeed,hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
-let now=0,frames=[],width=736,height=440,arcs=[],resize,draws=0;const listeners={};
+let now=0,frames=[],width=736,height=440,arcs=[],petals=[],resize,draws=0;const listeners={};
 function element(name){return {name,style:{},dataset:{},textContent:'',disabled:false,attrs:{},events:{},addEventListener(k,fn){this.events[k]=fn;},setAttribute(k,v){this.attrs[k]=v;},remove(){},setPointerCapture(){},getBoundingClientRect(){return {width,height};}};}
 const context=new Proxy({}, {get(o,k){if(k==='createLinearGradient')return ()=>({addColorStop(){}});return (...args)=>{args.forEach(a=>{if(typeof a==='number')assert(Number.isFinite(a),k+' finite argument');});if(k==='arc')arcs.push(args);draws++;};},set(o,k,v){o[k]=v;return true;}});
 const selectors=['canvas','.cw-status','.cw-count','.cw-start','.cw-demo','.cw-sound','.cw-progress','.cw-phrase','.cw-track','.cw-upload','.cw-original','.cw-settings','.cw-fields','.cw-bpm','.cw-mapping','.cw-offset','.cw-instruction'];
 const elements=Object.fromEntries(selectors.map(s=>[s,element(s)]));const bar=element('span');elements['.cw-progress'].querySelector=()=>bar;elements.canvas.getContext=()=>context;
 const hands=['a','w','s','d'].map(key=>{const e=element('hand');e.dataset.key=key;e.label=element('span');e.querySelector=()=>e.label;return e;});
 const root=element('root');root.querySelector=s=>{assert(elements[s],s);return elements[s];};root.querySelectorAll=()=>hands;root.appendChild=()=>{};
-const document={getElementById:id=>{assert(html.includes('id="'+id+'"'));return root;},createElement:()=>element('probe'),addEventListener(k,v){listeners[k]=v;},dispatchEvent(e){listeners[e.type]?.(e);},hidden:false};
+const document={getElementById:id=>{assert(html.includes('id="'+id+'"'));return root;},createElement:()=>({...element('probe'),getContext:()=>context}),addEventListener(k,v){listeners[k]=v;},dispatchEvent(e){listeners[e.type]?.(e);},hidden:false};
 const window={addEventListener(k,v){listeners[k]=v;}};
-const sandbox={CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail;}},document,window,console,Math,Number,String,Promise,performance:{now:()=>now},devicePixelRatio:1,matchMedia:()=>({matches:false,addEventListener(){}}),getComputedStyle:()=>({color:'#aabbcc'}),ResizeObserver:class{constructor(fn){resize=fn;}observe(){resize();}},requestAnimationFrame(fn){frames.push(fn);return frames.length;},cancelAnimationFrame(){frames=[];}};
+const sandbox={Path2D:class {moveTo(){} lineTo(){} closePath(){}},CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail;}},document,window,console,Math,Number,String,Promise,performance:{now:()=>now},devicePixelRatio:1,matchMedia:()=>({matches:false,addEventListener(){}}),getComputedStyle:()=>({color:'#aabbcc'}),ResizeObserver:class{constructor(fn){resize=fn;}observe(){resize();}},requestAnimationFrame(fn){frames.push(fn);return frames.length;},cancelAnimationFrame(){frames=[];}};
+vm.runInNewContext(fs.readFileSync(require('path').join(__dirname,'../assets/js/crosswind-art.js'),'utf8'),sandbox);
+const paintPetal=window.CrosswindArt.petal;window.CrosswindArt.petal=(g,x,y,angle,open,...rest)=>{petals.push({x,y,open});paintPetal(g,x,y,angle,open,...rest);};
 vm.runInNewContext(source,sandbox);const api=sandbox.testStudy;document.dispatchEvent({type:"cadence:mode",detail:{mode:"crosswind",level:"hard"}});
 function step(sec){now=sec*1000;const queue=frames;frames=[];queue.forEach(fn=>fn(now));}
 function advance(seconds){const target=now/1000+seconds;while(now/1000+1/60<target)step(now/1000+1/60);step(target);}
@@ -28,7 +30,7 @@ const hemMid=api.curvePoint([[-12,64],[0,49],[12,64]],.5);assert.equal(hemMid[1]
 for(const w of [320,440,441,736]){
   width=w;height=w<=440?400:440;resize();const paths=[];
   for(const lean of [-1,0,1])for(const climb of [-1,0,1]){
-    api.setPose(lean,climb);arcs=[];api.draw(1);assert(arcs.every(a=>a[2]<=8),'only notes use circles; contacts trace the silhouette');
+    api.setPose(lean,climb);arcs=[];petals=[];api.draw(1);
     paths.push(JSON.stringify(['a','w','s','d'].map(k=>api.gustPosition({keys:[k],time:2},1).local)));
   ['a','w','s','d'].forEach((k,i)=>{
     const target=api.catchPoint(k),touch=hands[i],sail=api.flightPose().project(...api.sailPoints[k]);
@@ -89,10 +91,10 @@ start();at(2);key('keydown','a');at(3.75);key('keyup','a');assert.equal(api.snap
 start();at(2.5);key('keydown','a');key('keydown','ArrowLeft');at(3);key('keyup','a');assert(api.snapshot().held.a!==null);at(3.75);key('keyup','ArrowLeft');assert.equal(api.snapshot().hits,1);
 // An accepted early hold must not teleport its head to the wing. Once the head
 // arrives, it is consumed so it cannot hide the approaching hollow release tail.
-start();at(2.4);key('keydown','a');arcs=[];api.draw(2.4);let contact=api.catchPoint('a');
-assert(arcs.some(([x,y,r])=>x<contact[0] && r===8 && y<contact[1]));
-at(2.5);arcs=[];api.draw(2.5);contact=api.catchPoint('a');assert(!arcs.some(([x,y,r])=>Math.abs(x-contact[0])<1e-9 && r===8));
-at(3.75);arcs=[];api.draw(3.75);contact=api.catchPoint('a');assert(arcs.some(([x,y,r])=>Math.abs(x-contact[0])<1e-9 && r===7 && Math.abs(y-contact[1])<1e-9));key('keyup','a');assert.equal(api.snapshot().hits,1);
+start();at(2.4);key('keydown','a');arcs=[];petals=[];api.draw(2.4);let contact=api.catchPoint('a');
+assert(petals.some(({x,y,open})=>x<contact[0] && !open && y<contact[1]));
+at(2.5);arcs=[];petals=[];api.draw(2.5);contact=api.catchPoint('a');assert(!petals.some(({x,open})=>Math.abs(x-contact[0])<1e-9 && !open));
+at(3.75);arcs=[];petals=[];api.draw(3.75);contact=api.catchPoint('a');assert(petals.some(({x,y,open})=>Math.abs(x-contact[0])<1e-9 && open && Math.abs(y-contact[1])<1e-9));key('keyup','a');assert.equal(api.snapshot().hits,1);
 listeners.blur();click('.cw-demo');advance(31.4);assert.equal(api.snapshot().hits,20,'demo executes every interaction type');assert.equal(api.snapshot().bestStreak,20);assert.equal(elements['.cw-status'].textContent,'Your turn. Ride the wind.');assert.equal(bar.style.width,'100%');assert(!api.snapshot().running);
 click('.cw-sound');assert.equal(elements['.cw-sound'].textContent,'Sound off');assert(html.includes('<!doctype html>'));assert(!html.includes('\\"'));
 // Reduced-motion preference keeps scoring and edge positions functional while

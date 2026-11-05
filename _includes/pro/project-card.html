@@ -34,7 +34,7 @@
   <meta property="name" content="{{ project.title }}"/>
   {% if image_base %}<meta property="image" content="{% include_cached smart-url url=image_base %}"/>{% endif %}
 
-  <a href="{{ project.url | relative_url }}" class="no-hover no-print-link flip-project {% if project.standalone %}no-push-state{% endif %}" tabindex="-1">
+  <a href="{{ project.url | relative_url }}" class="no-hover no-print-link flip-project {% if project.standalone %}no-push-state no-mark-external{% endif %}" tabindex="-1">
     <div class="project-card-img aspect-ratio sixteen-nine flip-project-img {% unless screenshot %}fallback-img{% endunless %}">
       {% if screenshot %}
         {% include_cached components/hy-img.html img=screenshot alt=project.title sizes=sizes width=864 height=486 %}
@@ -42,7 +42,7 @@
     </div>
   </a>
   <h3 class="project-card-title flip-project-title">
-    <a href="{{ project.url | relative_url }}" class="flip-title {% if project.standalone %}no-push-state{% endif %}" property="mainEntityOfPage">{{ project.title }}</a>
+    <a href="{{ project.url | relative_url }}" class="flip-title {% if project.standalone %}no-push-state no-mark-external{% endif %}" property="mainEntityOfPage">{{ project.title }}</a>
   </h3>
   {% if project.description or project.tagline or project.caption %}
     <p class="project-card-text fine" property="disambiguatingDescription">
@@ -50,5 +50,5 @@
     </p>
   {% endif %}
   {% assign text = site.data.strings.continue_reading | default:"Continue reading <!--post_title-->" %}
-  <a class="fill-card no-hover {% if project.standalone %}no-push-state{% endif %}" href="{{ project.url | relative_url }}" tabindex="-1"><span class="sr-only">{{ text | replace:"<!--post_title-->", project.title }}</span></a>
+  <a class="fill-card no-hover {% if project.standalone %}no-push-state no-mark-external{% endif %}" href="{{ project.url | relative_url }}" tabindex="-1"><span class="sr-only">{{ text | replace:"<!--post_title-->", project.title }}</span></a>
 </article>

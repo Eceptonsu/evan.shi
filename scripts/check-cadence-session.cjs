@@ -23,9 +23,9 @@ class Element {
 }
 const html = fs.readFileSync('_projects/cadence.html', 'utf8');
 const elements = Object.fromEntries([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => [m[1], new Element()]));
-for (const [id, value] of Object.entries({ difficulty:'easy', song:'joy', section:'0', tuning:'440', pitch:'69', volume:'35', scene:'orbit', 'tune-mode':'drone', 'tap-offset':'0' })) elements[id].value = value;
+for (const [id, value] of Object.entries({ difficulty:'easy', song:'joy', section:'0', tuning:'440', pitch:'69', volume:'35', 'tune-mode':'drone' })) elements[id].value = value;
 elements.pitch.selectedOptions = [{ textContent: 'A4' }];
-const modes = ['melody','rhythm','drone','crosswind'].map((mode) => { const el = new Element(); el.dataset.mode = mode; return el; });
+const modes = ['melody','drone','crosswind'].map((mode) => { const el = new Element(); el.dataset.mode = mode; return el; });
 const idle = new Element();
 const document = { hidden:false, getElementById: (id) => elements[id], createElement: () => new Element(), dispatchEvent(e){dispatched.push(e);}, querySelector: () => idle, querySelectorAll: (selector) => selector === '.key' ? elements.keyboard.children : modes, addEventListener() {} };
 class AudioContext {
@@ -46,6 +46,7 @@ vm.runInNewContext(fs.readFileSync('assets/js/cadence.js', 'utf8'), { CustomEven
 function advance(seconds) { now += seconds; const pending = [...frames.values()]; frames.clear(); pending.forEach((fn) => fn()); }
 (async () => {
   assert.equal(elements.crosswind.hidden,false,'Crosswind opens inside Cadence');
+  assert(!html.includes('data-mode="rhythm"'),'Sync is removed');
   assert.equal(elements['practice-panel'].hidden,true);
   await modes[0].fire('click');
   await elements.preview.fire('click');
@@ -70,13 +71,7 @@ function advance(seconds) { now += seconds; const pending = [...frames.values()]
   assert.ok(voices.at(-1).end > now + .3, 'Final played note is allowed to ring');
   elements.song.value = 'jacques'; await elements.song.fire('change');
   assert.equal(elements.record.textContent, '0000', 'Songs have independent records');
-  await modes[1].fire('click');
-  await elements.start.fire('click');
-  assert.equal(elements.tap.disabled, false);
-  advance(40);
-  assert.equal(elements.phase.textContent, 'FINISHED', 'Rhythm ends at the selected section boundary');
-  assert.match(elements.feedback.textContent, /0\/4 notes hit/);
-  await modes[2].fire('click'); elements['tune-mode'].value='flight'; await elements['tune-mode'].fire('change'); await elements.start.fire('click');
+  await modes[1].fire('click'); elements['tune-mode'].value='flight'; await elements['tune-mode'].fire('change'); await elements.start.fire('click');
   assert.match(elements.feedback.textContent,/permission/, 'Unavailable microphone produces a recoverable error');
   assert.equal(elements.start.hidden,false);
   let pendingMic,stopped=0;
@@ -91,17 +86,15 @@ function advance(seconds) { now += seconds; const pending = [...frames.values()]
   assert.equal(stopped,2,'Finishing Flight releases the microphone');
   elements.upload.files=[{name:'My tune.wav',size:1024,arrayBuffer:async()=>new ArrayBuffer(8)}];
   await elements.upload.fire('change');
-  assert.equal(elements.song.value,'upload');
-  assert.equal(elements.headline.textContent,'My tune');
+  assert.equal(elements.crosswind.hidden,false,'Uploads open Crosswind');
   const shared=dispatched.find(e=>e.type==='cadence:track' && e.detail);
   assert(shared.detail.buffer && shared.detail.profile.events.length,'Crosswind receives the decoded recording and its analysis');
-  await elements.start.fire('click');
-  assert.ok(voices.some(v=>v.uploaded && v.duration===8),'Uploaded audio is actually scheduled for playback');
-  advance(20);assert.equal(elements.phase.textContent,'FINISHED');
-  await modes[3].fire('click');
+  await modes[0].fire('click');
+  assert.equal(elements.headline.textContent,'Frère Jacques','Repeat keeps its built-in song after an upload');
+  await modes[2].fire('click');
   assert.equal(elements.crosswind.hidden,false);assert.equal(elements['practice-panel'].hidden,true);
   assert.equal(elements['active-track'].textContent,'My tune','Switching games preserves the recording');
-  await elements['remove-upload'].fire('click');assert.equal(elements.song.value,'joy');
-  assert.equal(dispatched.filter(e=>e.type==='cadence:track').at(-1).detail,null,'Remove releases the recording in both games');
-  console.log('Session checks passed: accompanied preview, complete song, scoring, final-note release, per-song records, and rhythm section completion.');
+  await elements['remove-upload'].fire('click');assert.equal(elements.song.value,'jacques');
+  assert.equal(dispatched.filter(e=>e.type==='cadence:track').at(-1).detail,null,'Remove releases the Crosswind recording');
+  console.log('Session checks passed: accompanied preview, complete song, scoring, pitch flight, upload routing, and mode switching.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

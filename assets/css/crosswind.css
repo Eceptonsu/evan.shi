@@ -17,7 +17,7 @@
 #crosswind .cw-name { font-family:Georgia,serif; font-size:30px; font-weight:400; letter-spacing:-1px; }
 #crosswind .cw-label { color:var(--quiet); font-size:11px; letter-spacing:1.5px; text-transform:uppercase; }
 #crosswind .cw-stage { position:relative; }
-#crosswind canvas { display:block; width:100%; height:440px; }
+#crosswind canvas { display:block; width:100%; height:500px; }
 #crosswind .cw-hud { position:absolute; left:26px; top:20px; right:26px; display:flex; justify-content:space-between; gap:14px; pointer-events:none; font-size:12px; color:var(--quiet); font-variant-numeric:tabular-nums; }
 #crosswind .cw-controls { padding:0 26px 22px; }
 #crosswind .cw-hands { position:absolute; inset:0; pointer-events:none; }
@@ -39,4 +39,5 @@
 #crosswind .cw-sound { margin-left:auto; color:var(--quiet); }
 #crosswind .cw-progress { height:2px; background:color-mix(in srgb,var(--ink) 8%,transparent); }
 #crosswind .cw-progress span { display:block; width:0%; height:100%; background:var(--sail); }
-@media(max-width:440px) { #crosswind .cw-top { padding-left:18px; } #crosswind canvas { height:400px; } #crosswind .cw-controls { padding:0 18px 18px; } #crosswind .cw-hud, #crosswind .cw-phrase { left:18px; right:18px; } #crosswind .cw-label { font-size:11px; letter-spacing:.5px; } }
+.cw-seal { display:inline-grid; place-items:center; vertical-align:middle; width:24px; height:29px; margin-left:10px; color:#9c5a64; border:1px solid currentColor; font:18px KaiTi,STKaiti,serif; transform:rotate(-3deg); opacity:.8; }
+@media(max-width:440px) { #crosswind .cw-top { padding-left:18px; } #crosswind canvas { height:420px; } #crosswind .cw-controls { padding:0 18px 18px; } #crosswind .cw-hud, #crosswind .cw-phrase { left:18px; right:18px; } #crosswind .cw-label { font-size:11px; letter-spacing:.5px; } }

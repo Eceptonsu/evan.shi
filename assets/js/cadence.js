@@ -3,10 +3,8 @@
   const $ = (id) => document.getElementById(id);
   const C = window.CadenceCore;
   const Lab = window.CadenceLab;
-  const rhythmScene = new Lab.Scene($('rhythm-canvas'));
   const flightScene = new Lab.Scene($('flight-canvas'));
   let uploaded = null, uploadGeneration = 0, microphone = null;
-  const isUpload = () => $('song').value === 'upload';
   function stopMicrophone() { if (microphone) { microphone.stream.getTracks().forEach(t=>t.stop()); microphone.source.disconnect(); microphone.analyser.disconnect(); microphone=null; } }
   const names = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C↑'];
   const shortcuts = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k'];
@@ -15,7 +13,7 @@
   let records = {};
   try {
     const raw = JSON.parse(localStorage.getItem(storeKey) || '{}');
-    if (raw && typeof raw === 'object') for (const [key, value] of Object.entries(raw)) if (/^(melody|rhythm)-(easy|medium|hard)-(joy|jacques|saints)-(all|[0-3])$/.test(key) && Number.isSafeInteger(value) && value >= 0) records[key] = value;
+    if (raw && typeof raw === 'object') for (const [key, value] of Object.entries(raw)) if (/^(melody)-(easy|medium|hard)-(joy|jacques|saints)-(all|[0-3])$/.test(key) && Number.isSafeInteger(value) && value >= 0) records[key] = value;
   } catch { $('storage-status').textContent = 'Storage unavailable. Records last this visit.'; }
 
   class Audio {
@@ -51,64 +49,38 @@
   const text = (id, value) => { $(id).textContent = value; };
   const level = () => $('difficulty').value;
   const recordKey = () => `${mode}-${level()}-${$('song').value}-${$('section').value}`;
-  const song = () => isUpload() ? { title: uploaded?.name || 'Your music', credit: 'Local audio · Sync', bpm: Number($('upload-bpm').value) || 120 } : C.songs[$('song').value];
-  const tempo = () => song().bpm * (isUpload() ? 1 : { easy: .75, medium: 1, hard: 1.15 }[level()]);
+  const song = () => C.songs[$('song').value];
+  const tempo = () => song().bpm * { easy:.75, medium:1, hard:1.15 }[level()];
   function scores() { text('score', String(run?.score || 0).padStart(4, '0')); text('record', String(records[recordKey()] || 0).padStart(4, '0')); }
-  function lock(locked) { for(const id of ['upload','upload-bpm','upload-chart','remove-upload','tap-offset','tune-mode']) $(id).disabled=locked; $('song').disabled = locked; $('section').disabled = locked; $('preview').disabled = locked; $('difficulty').disabled = locked; $('pitch').disabled = locked; $('tuning').disabled = locked; $('start').hidden = locked; $('stop').hidden = !locked; }
+  function lock(locked) { for(const id of ['upload','remove-upload','tune-mode']) $(id).disabled=locked; $('song').disabled = locked; $('section').disabled = locked; $('preview').disabled = locked; $('difficulty').disabled = locked; $('pitch').disabled = locked; $('tuning').disabled = locked; $('start').hidden = locked; $('stop').hidden = !locked; }
   function clear() {
     generation++; loading = false; cancelAnimationFrame(raf); audio?.stop(); stopMicrophone(); run = null; lock(false);
     $('start').disabled = false; $('replay').hidden = true; $('continue').hidden = true;
     document.querySelectorAll('.key').forEach((el) => { el.disabled = false; el.classList.remove('active'); });
-    $('tap').classList.remove('flash');
   }
   function choose(next) {
-    clear(); mode = next;
-    $('crosswind').hidden = mode !== 'crosswind';
-    $('practice-panel').hidden = mode === 'crosswind';
-    $('active-track').textContent = mode==='crosswind' ? uploaded?.name||'First flight' : mode==='drone' ? 'Concert pitch' : song().title;
-    $('remove-upload').hidden = !uploaded;
-    $('difficulty').parentElement.hidden = false;
-    document.dispatchEvent(new CustomEvent('cadence:mode', {detail:{mode,level:level()}}));
-    document.querySelectorAll('[data-mode]').forEach((el) => el.setAttribute('aria-pressed', el.dataset.mode === mode));
-    if(mode === 'crosswind') return;
-    $('song-picker').hidden = mode === 'drone'; text('song-credit', song().credit);
-    for (const name of ['melody', 'rhythm', 'drone']) $(`${name}-view`).hidden = name !== mode;
-    $('keyboard').hidden = mode !== 'melody'; $('tap').hidden = mode !== 'rhythm';
-    $('tap').disabled = true; $('difficulty').parentElement.hidden = mode === 'drone';
-    $('record').parentElement.hidden = mode === 'drone' || isUpload(); $('score').parentElement.hidden = mode === 'drone';
-    text('mode-label', mode === 'melody' ? '02 / REPEAT' : mode === 'rhythm' ? '03 / SYNC' : '04 / SUSTAIN');
-    text('phase', 'READY'); text('start', mode === 'drone' ? ($('tune-mode').value === 'flight' ? 'Start microphone' : 'Start drone') : 'Play ↗');
-    $('upload-settings').hidden = !uploaded || mode === 'drone';
-    $('difficulty').parentElement.hidden = mode === 'drone' && $('tune-mode').value !== 'flight';
-    $('flight-canvas').hidden = $('tune-mode').value !== 'flight';
-    if (mode === 'drone' && $('tune-mode').value === 'flight') flightScene.draw('flight', 0);
-    updateScene();
-    text('headline', mode === 'drone' ? 'Sustain' : song().title);
-    text('instruction', mode === 'melody' ? 'Listen, then play it back.' : mode === 'rhythm' ? 'Tap at the line or anvil.' : 'Play along with the drone.');
-    text('feedback', '');
-    if (isUpload() && mode === 'melody') { $('start').disabled = true; text('instruction', 'Your audio plays in Sync. Choose a built-in song for Repeat.'); }
-    text('run-detail', mode === 'melody' ? 'A S D F G H J K' : mode === 'rhythm' ? 'SPACE / TAP' : 'Concert pitch');
-    text('help', mode === 'melody' ? 'Repeat each phrase. Easy shows the keys. Three misses end the run; replay whenever you need to. Pitch is scored; rhythm is free.' : mode === 'rhythm' ? 'Tap on the line. Easy follows the half-note pulse; Medium follows the melody; Hard adds taps during held notes. Use wired headphones for more consistent timing.' : 'Match the concert note. No pitch scoring. The drone stops after two minutes.');
-    text('scoring', mode === 'melody' ? '100 per new correct note. 150 bonus for a phrase without misses or replays.' : mode === 'rhythm' ? 'Perfect ≤55 ms: 100. Good ≤110 ms: 65. Early/late ≤180 ms: 25. Extra taps: −25.' : 'Rest whenever you need to.');
-    if(mode==='drone' && $('tune-mode').value==='flight') {
-      text('instruction','Hold the target note to fly through six gates.');
-      text('help','Play a single steady note into your microphone. Sharp moves up; flat moves down. Microphone audio is processed locally and is not recorded.');
-      text('scoring','Hold within 35 / 25 / 15 cents on Easy / Medium / Hard for the final 0.6 seconds before each gate. 100 points per gate. Rest or stop whenever needed.');
-    }
-    if(mode==='rhythm' && isUpload()) text('help','A generated chart follows detected sound attacks, not a hand-authored score. Beat grid is useful for tracks with few attacks. Positive tap offset compensates for late input. Files stay in memory until removed or the page closes.');
-    $('phrase').replaceChildren(); const blank = document.createElement('span'); blank.className = 'empty-phrase'; blank.textContent = '●  ●  ●'; $('phrase').append(blank);
-    text('phrase-caption', ''); $('notes').replaceChildren(); document.querySelector('.track-idle').hidden = false;
-    text('tempo-label', `${Math.round(tempo())} BPM`); text('combo', '0 COMBO'); text('remaining', `${isUpload() ? Math.ceil(uploadPart().duration * tempo() / 60) : C.arrangement($('song').value, $('section').value).beats} BEATS`); scores(); droneDisplay();
-  }
-  function updateScene() {
-    const classic = $('scene').value === 'track'; $('classic-track').hidden=!classic; $('rhythm-canvas').hidden=classic;
-    if(mode==='rhythm' && !classic && (!run || run.phase!=='rhythm')) rhythmScene.draw($('scene').value,0);
-  }
-  function uploadPart() { const duration=uploaded.buffer.duration; const section=$('section').value; return section==='all' ? { offset:0,duration } : { offset:Number(section)*duration/4,duration:duration/4 }; }
-  function playUploaded(at, part) {
-    const source=audio.ctx.createBufferSource(); const gain=audio.ctx.createGain();
-    source.buffer=uploaded.buffer; gain.gain.value=.85; source.connect(gain);gain.connect(audio.master);
-    const voice={o:source,g:gain};audio.nodes.add(voice);source.onended=()=>{source.disconnect();gain.disconnect();audio.nodes.delete(voice);};source.start(at,part.offset,part.duration);
+    clear(); mode=['crosswind','melody','drone'].includes(next)?next:'crosswind';
+    $('crosswind').hidden=mode!=='crosswind';$('practice-panel').hidden=mode==='crosswind';
+    $('active-track').textContent=mode==='crosswind'?uploaded?.name||'First flight':mode==='drone'?'Concert pitch':song().title;
+    $('remove-upload').hidden=!uploaded;
+    $('difficulty').parentElement.hidden=mode==='drone' && $('tune-mode').value!=='flight';
+    document.dispatchEvent(new CustomEvent('cadence:mode',{detail:{mode,level:level()}}));
+    document.querySelectorAll('[data-mode]').forEach(el=>el.setAttribute('aria-pressed',el.dataset.mode===mode));
+    if(mode==='crosswind')return;
+    $('song-picker').hidden=mode==='drone';text('song-credit',song().credit);
+    for(const name of ['melody','drone'])$(name+'-view').hidden=name!==mode;
+    $('keyboard').hidden=mode!=='melody';$('record').parentElement.hidden=mode==='drone';$('score').parentElement.hidden=mode==='drone';
+    const flight=mode==='drone' && $('tune-mode').value==='flight';
+    text('mode-label',mode==='melody'?'02 / REPEAT':'03 / SUSTAIN');
+    text('phase','READY');text('start',mode==='melody'?'Play ↗':flight?'Start microphone':'Start drone');
+    $('flight-canvas').hidden=!flight;if(flight)flightScene.draw('flight',0);
+    text('headline',mode==='drone'?'Sustain':song().title);
+    text('instruction',mode==='melody'?'Listen, then play it back.':flight?'Hold the target note to fly through six gates.':'Play along with the drone.');
+    text('feedback','');text('run-detail',mode==='melody'?'A S D F G H J K':'Concert pitch');
+    text('help',mode==='melody'?'Repeat each phrase. Easy shows the keys. Three misses end the run; replay whenever you need to. Pitch is scored; rhythm is free.':flight?'Play a single steady note into your microphone. Sharp moves up; flat moves down. Microphone audio is processed locally and is not recorded.':'Match the concert note. The drone stops after two minutes.');
+    text('scoring',mode==='melody'?'100 per new correct note. 150 bonus for a phrase without misses or replays.':flight?'Hold within 35 / 25 / 15 cents on Easy / Medium / Hard for the final 0.6 seconds before each gate. 100 points per gate.':'Rest whenever you need to.');
+    $('phrase').replaceChildren();const blank=document.createElement('span');blank.className='empty-phrase';blank.textContent='●  ●  ●';$('phrase').append(blank);
+    text('phrase-caption','');scores();droneDisplay();
   }
   function droneDisplay() { text('drone-note', $('pitch').selectedOptions[0].textContent); text('drone-frequency', `${(Number($('tuning').value) * 2 ** ((Number($('pitch').value) - 69) / 12)).toFixed(1)} Hz`); }
   function slots() {
@@ -168,35 +140,7 @@
     }
   }
 
-  function startRhythm() {
-    if(isUpload()) { startUploadedRhythm(); return; }
-    run.phase = 'rhythm'; run.beat = 60 / tempo(); run.scoreData = C.arrangement($('song').value, $('section').value); run.start = audio.now + .3 + 4 * run.beat;
-    run.targets = C.songTargets($('song').value, $('section').value, level()).map((beat) => ({ time: run.start + beat * run.beat, state: 'waiting' }));
-    run.combo = 0; run.maxCombo = 0; run.hits = 0; run.quality = 0;
-    $('notes').replaceChildren(...run.targets.map((target) => { const el = document.createElement('span'); el.className = 'beat-note'; target.el = el; return el; }));
-    document.querySelector('.track-idle').hidden = true;
-    for (let i = -4; i < 0; i++) audio.note(80, run.start + i * run.beat, .055, 'tick');
-    arrange(run.start, run.scoreData, run.beat);
-    $('tap').disabled = false; $('tap').focus({ preventScroll: true }); text('headline', song().title); text('phase', 'COUNT IN');
-  }
-  function tap() {
-    if (!run || run.phase !== 'rhythm') return;
-    const now = audio.heard - Number($('tap-offset').value || 0)/1000;
-    if (now < run.start - .18) return;
-    const available = run.targets.filter((t) => t.state === 'waiting');
-    const nearest = available.reduce((best, t) => !best || Math.abs(t.time - now) < Math.abs(best.time - now) ? t : best, null);
-    const result = nearest ? C.judgment(now - nearest.time) : { points: 0 };
-    audio.note(85, audio.now, .045, 'tick');
-    $('tap').classList.add('flash'); setTimeout(() => $('tap').classList.remove('flash'), 80);
-    if (result.points) {
-      nearest.state = 'hit'; nearest.el.classList.add('hit'); run.hits++; run.quality += result.points; run.combo++; run.maxCombo = Math.max(run.maxCombo, run.combo); run.score += result.points;
-      text('feedback', `${result.label} / ${Math.round(Math.abs(now - nearest.time) * 1000)} ms ${now < nearest.time ? 'early' : 'late'}`);
-    } else { run.combo = 0; run.score = Math.max(0, run.score - 25); text('feedback', 'Extra tap · −25'); }
-    rhythmScene.flash(audio.heard, Boolean(result.points));
-    text('combo', `${run.combo} COMBO`); scores();
-  }
   function save() {
-    if(isUpload()) return;
     const key = recordKey(); if (run.score <= (records[key] || 0)) return;
     records[key] = run.score;
     try { localStorage.setItem(storeKey, JSON.stringify(records)); } catch { text('storage-status', 'Storage unavailable. Records last this visit.'); }
@@ -208,7 +152,7 @@
     if (!letNoteRing) audio.stop();
     cancelAnimationFrame(raf); run.phase = 'over';
     if (mode !== 'drone' && !run.preview) save();
-    lock(false); $('replay').hidden = true; $('continue').hidden = true; $('tap').disabled = true;
+    lock(false); $('replay').hidden = true; $('continue').hidden = true;
     document.querySelectorAll('.key').forEach((el) => { el.disabled = false; el.classList.remove('active'); });
     text('phase', 'FINISHED'); text('headline', mode === 'drone' ? 'Sustain' : song().title); text('feedback', message); text('start', mode === 'drone' ? ($('tune-mode').value === 'flight' ? 'Start microphone' : 'Start drone') : 'Play again ↗');
   }
@@ -225,17 +169,6 @@
         [...$('keyboard').children].forEach((el) => { el.disabled = false; el.classList.remove('active'); });
         $('keyboard').children[0].focus({ preventScroll: true });
       }
-    } else if (run.phase === 'rhythm') {
-      const beat = (now - run.start) / run.beat;
-      text('phase', beat < 0 ? `COUNT IN / ${Math.min(4, Math.ceil(-beat))}` : `BAR ${Math.min(run.scoreData.beats / 4, Math.floor(beat / 4) + 1)} / ${run.scoreData.beats / 4}`);
-
-      for (const target of run.targets) {
-        target.el.style.left = `${18 + ((target.time - now) / run.beat) * 18}%`;
-        if (target.state === 'waiting' && now - Number($('tap-offset').value || 0)/1000 > target.time + .18) { target.state = 'miss'; target.el.classList.add('miss'); run.combo = 0; text('combo', '0 COMBO'); text('feedback', 'Miss'); }
-      }
-      text('remaining', `${Math.max(0, Math.ceil(run.scoreData.beats - beat))} BEATS LEFT`);
-      if ($('scene').value !== 'track') rhythmScene.draw($('scene').value, now, run.targets, run.beat);
-      if (beat >= run.scoreData.beats + Math.max(.5,.6/run.beat)) { finish(`${run.hits}/${run.targets.length} notes hit · ${Math.round(run.quality / Math.max(1,run.targets.length * 100) * 100)}% timing accuracy · best combo ${run.maxCombo}.`); return; }
     } else if (run.phase === 'flight') { tickFlight(now); if(run.phase==='over')return;
     } else if (run.phase === 'preview' && audio.now >= run.end) { finish(''); return;
     } else if (run.phase === 'drone' && audio.now >= run.end) { finish('Two minutes complete.'); return; }
@@ -246,28 +179,14 @@
     clear(); loading = true; const token = generation; $('start').disabled = true;
     try {
       await sound(); if (token !== generation || document.hidden) return;
-      run = { phase: 'start', round: 0, score: 0, preview, parts: isUpload() ? [] : C.songPhrases($('song').value, $('section').value, level()) }; lock(true); scores();
-      if (preview && isUpload()) { const part=uploadPart();run.phase='preview';run.end=audio.now+.1+part.duration;playUploaded(audio.now+.1,part);text('phase','LISTENING'); }
-      else if (preview) { const data = C.arrangement($('song').value, $('section').value); const beat = 60 / tempo(); run.phase = 'preview'; run.end = audio.now + .1 + data.beats * beat; arrange(audio.now + .1, data, beat); text('phase', 'LISTENING'); text('feedback', ''); }
-      else if (mode === 'melody' && isUpload()) { finish('Choose a built-in song for Repeat.'); }
+      run = { phase: 'start', round: 0, score: 0, preview, parts: C.songPhrases($('song').value, $('section').value, level()) }; lock(true); scores();
+      if (preview) { const data = C.arrangement($('song').value, $('section').value); const beat = 60 / tempo(); run.phase = 'preview'; run.end = audio.now + .1 + data.beats * beat; arrange(audio.now + .1, data, beat); text('phase', 'LISTENING'); text('feedback', ''); }
       else if (mode === 'melody') newPhrase();
-      else if (mode === 'rhythm') startRhythm();
       else if ($('tune-mode').value === 'flight') { await startFlight(token); if(token !== generation || !run || run.phase==='over') return; }
       else { run.phase = 'drone'; run.end = audio.now + 120; audio.note(Number($('pitch').value), audio.now, 120); text('phase', 'PLAYING'); text('headline', 'Sustain'); text('feedback', ''); }
       raf = requestAnimationFrame(tick);
     } catch { if(token!==generation)return; stopMicrophone(); if(run)finish('Could not start. Check audio or microphone permission, then retry.'); else text('feedback','Could not start audio. Try again.'); }
-    finally { if(token===generation){loading = false; $('start').disabled = mode==='melody'&&isUpload();} }
-  }
-  function startUploadedRhythm() {
-    const part=uploadPart(); run.phase='rhythm';run.beat=60/tempo();run.start=audio.now+.3+4*run.beat;
-    run.scoreData={beats:part.duration/run.beat};
-    const peaks=uploaded.analysis.times.filter(t=>t>=part.offset && t<part.offset+part.duration).map(t=>t-part.offset);
-    run.targets=Lab.chart(peaks,part.duration,tempo(),level(),$('upload-chart').value==='grid').map(time=>({time:run.start+time,state:'waiting'}));
-    run.combo=0;run.maxCombo=0;run.hits=0;run.quality=0;
-    $('notes').replaceChildren(...run.targets.map(target=>{const el=document.createElement('span');el.className='beat-note';target.el=el;return el;}));
-    document.querySelector('.track-idle').hidden=true;
-    for(let i=-4;i<0;i++)audio.note(80,run.start+i*run.beat,.055,'tick');
-    playUploaded(run.start,part);$('tap').disabled=false;$('tap').focus({preventScroll:true});text('headline',uploaded.name);text('phase','COUNT IN');
+    finally { if(token===generation){loading = false; $('start').disabled = false;} }
   }
   async function startFlight(token) {
     if(!navigator.mediaDevices?.getUserMedia)throw Error('Microphone unavailable');
@@ -313,22 +232,19 @@
       await sound();
       const buffer=await audio.ctx.decodeAudioData(await file.arrayBuffer());
       if(buffer.duration<5 || buffer.duration>300)throw Error('Choose a track between 5 seconds and 5 minutes.');
-      text('upload-status','Building chart…');
+      text('music-status','Preparing track…');
       const analysis=await Lab.analyse(buffer,true);
       const profile=window.CrosswindScore.profile(analysis);
       analysis.times=profile.events.map(event=>event.time);analysis.bpm=profile.bpm;
       if(token!==uploadGeneration)return;
       uploaded={buffer,analysis,profile,name:file.name.replace(/\.[^.]+$/,'')};
-      let option=[...$('song').options].find(option=>option.value==='upload');
-      if(!option){option=document.createElement('option');option.value='upload';$('song').append(option);}
-      option.textContent=uploaded.name;$('song').value='upload';$('section').value='all';$('upload-bpm').value=analysis.bpm;
       document.dispatchEvent(new CustomEvent('cadence:track',{detail:uploaded}));
-      text('music-status','');text('upload-status','Local only · auto chart is approximate.');choose(mode==='crosswind'?'crosswind':'rhythm');
+      text('music-status','');choose('crosswind');
     } catch(error) { if(token===uploadGeneration)text('music-status',error.message?.match(/^(Use a|Choose a|No audible)/)?error.message:'Could not read this file. Try MP3 or WAV.'); }
-    finally { if(token===uploadGeneration){$('upload').value='';$('upload').disabled=false;$('start').disabled=mode==='melody'&&isUpload();$('preview').disabled=false;document.dispatchEvent(new CustomEvent('cadence:loading',{detail:false}));} }
+    finally { if(token===uploadGeneration){$('upload').value='';$('upload').disabled=false;$('start').disabled=false;$('preview').disabled=false;document.dispatchEvent(new CustomEvent('cadence:loading',{detail:false}));} }
   });
   $('remove-upload').addEventListener('click',()=>{
-    uploadGeneration++;clear();uploaded=null;const option=[...$('song').options].find(o=>o.value==='upload');option?.remove();$('song').value='joy';$('section').value='all';text('music-status','');document.dispatchEvent(new CustomEvent('cadence:track',{detail:null}));choose(mode);
+    uploadGeneration++;clear();uploaded=null;text('music-status','');document.dispatchEvent(new CustomEvent('cadence:track',{detail:null}));choose(mode);
   });
   names.forEach((name, i) => {
     const key = document.createElement('button'); key.className = 'key'; key.setAttribute('aria-label', `${name === 'C↑' ? 'C5' : name + '4'}, keyboard ${shortcuts[i].toUpperCase()}`);
@@ -345,20 +261,12 @@
   $('stop').addEventListener('click', () => { finish(mode === 'drone' ? 'Drone stopped.' : 'Stopped.'); });
   $('continue').addEventListener('click', () => { if (run?.phase === 'won') { run.round++; newPhrase(); } });
   $('replay').addEventListener('click', () => { if (run?.phase === 'input') { run.assisted = true; listen(); } });
-  $('tap').addEventListener('pointerdown', (event) => { if (event.button !== 0) return; event.preventDefault(); $('tap').focus({ preventScroll: true }); tap(); });
-  $('tap').addEventListener('click', (event) => { if (event.detail === 0) tap(); });
   document.addEventListener('keydown', (event) => {
     if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || event.target.closest('input,select,a')) return;
-    if (mode === 'rhythm' && run?.phase === 'rhythm' && event.code === 'Space' && (!event.target.closest('button') || event.target === $('tap'))) { event.preventDefault(); tap(); }
     const index = shortcuts.indexOf(event.key.toLowerCase());
     if (mode === 'melody' && index >= 0) { event.preventDefault(); playKey(index); }
   });
-  $('scene').addEventListener('change', updateScene);
   $('tune-mode').addEventListener('change', () => choose(mode));
-  $('upload-bpm').addEventListener('change', () => { $('upload-bpm').value = Math.min(240,Math.max(40,Number($('upload-bpm').value)||120)); choose(mode); });
-  $('upload-chart').addEventListener('change', () => choose(mode));
-  $('tap-offset').addEventListener('change', () => { $('tap-offset').value = Math.min(300,Math.max(-300,Number($('tap-offset').value)||0)); });
-  $('rhythm-canvas').addEventListener('pointerdown', event => { if(event.button===0){event.preventDefault();$('tap').focus({preventScroll:true});tap();} });
   $('volume').addEventListener('input', () => audio?.volume());
   $('pitch').addEventListener('change', droneDisplay); $('tuning').addEventListener('change', droneDisplay);
   function interrupt() { generation++; if (run && run.phase !== 'over') finish('Stopped while away.'); else audio?.stop(); }

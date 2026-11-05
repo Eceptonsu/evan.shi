@@ -67,7 +67,7 @@ footer { display:flex; justify-content:space-between; gap:15px; border-top:1px s
 
 /* One home for every Cadence game. */
 :root { --paper:#f4efea; --ink:#302b2c; --line:#d5c7ca; --orange:#a85c76; --muted:#6e6064; }
-.modes { display:grid; grid-template-columns:repeat(4,1fr); }
+.modes { display:grid; grid-template-columns:repeat(3,1fr); }
 .modes button { min-width:0; }
 .session-settings { display:flex; align-items:center; gap:18px; flex-wrap:wrap; padding:18px 0; font-size:13px; }
 .session-settings label { display:flex; align-items:center; gap:8px; }
@@ -79,4 +79,4 @@ footer { display:flex; justify-content:space-between; gap:15px; border-top:1px s
 #crosswind { border:1px solid var(--line); --paper:#f4efea; --ink:#302b2c; --quiet:#6e6064; --mist:#dfcfd0; --ridge:#554e53; --sail:#ad5e78; --sail-light:#e9b9c4; --line:#51464c; }
 #crosswind .cw-name { margin:0; }
 #crosswind .cw-top { padding-top:18px; }
-@media(max-width:650px) { .modes { grid-template-columns:repeat(2,1fr); } .modes button { padding:13px 8px; font-size:17px; } .session-settings { gap:10px; } .intro { padding:20px 0; } }
+@media(max-width:650px) { .modes { grid-template-columns:repeat(3,1fr); } .modes button { padding:13px 8px; font-size:14px; } .modes button>span { margin-right:6px; } .session-settings { gap:10px; } .intro { padding:20px 0; } }

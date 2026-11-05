@@ -1,6 +1,7 @@
 (() => {
   const root=document.getElementById('crosswind');
   const canvas=root.querySelector('canvas'), ctx=canvas.getContext('2d');
+  const art=window.CrosswindArt;
   const status=root.querySelector('.cw-status'), count=root.querySelector('.cw-count');
   const startButton=root.querySelector('.cw-start'), demoButton=root.querySelector('.cw-demo'), soundButton=root.querySelector('.cw-sound');
   const progress=root.querySelector('.cw-progress'), bar=progress.querySelector('span');
@@ -52,7 +53,7 @@
     notes = [];
     startButton.textContent = 'Play';
     phrase.textContent = levels[difficulty].label;
-    instruction.textContent=difficulty==='easy'?'A / D · Tap when the dot touches the wingtip.':difficulty==='medium'?'W A S D · Hold ribbons through the tail. Release is automatic.':'W A S D · Tap dots. Hold ribbons, then release at the hollow tail.';
+    instruction.textContent=difficulty==='easy'?'A / D · Catch the petal tip at the wing.':difficulty==='medium'?'W A S D · Hold the ink ribbon through its tail. Release is automatic.':'W A S D · Catch petals. Hold ribbons, then release at the open petal.';
     hands.forEach(button=>button.hidden=difficulty==='easy' && !['a','d'].includes(button.dataset.key));
     bar.style.width = '0%';
     progress.setAttribute('aria-valuenow', '0');
@@ -155,48 +156,44 @@
     return [vx+(x-lateral)*width*.46*perspective,vy+(y*height*.34+world.pitch*.32)*perspective];
   }
   function drawPassage(){
-    // Permanent world slices approach in perspective, then leave below and to
-    // either side. Their shapes remain fixed as the camera passes through them.
-    const spacing=3,first=Math.floor(forward/spacing);
-    for(let row=8;row>=0;row--){
+    const spacing=4.2,first=Math.floor(forward/spacing);
+    // Sparse painted crags occupy the banks; the white river and mist remain
+    // open around the kite and timing paths. Each crag is fixed in world space.
+    for(let row=6;row>=0;row--){
       const id=first+row,z=(id+1)*spacing-forward;
-      const fade=Math.min(1,z/.9)*Math.max(0,Math.min(1,(25-z)/6));
-      const near=1-z/27;
+      const fade=Math.min(1,z/1.4)*Math.max(0,Math.min(1,(28-z)/8));
       for(const side of [-1,1]){
-        const crest=[];
-        const bend=.12*Math.sin(id*1.73+side);
-        for(let i=0;i<=26;i++){
-          const u=i/26,x=side*(.2+u*3.5)+bend;
-          const peak=Math.sin(Math.PI*u)**2*(.8+.18*Math.sin(id*2.4+side));
-          const y=1.5-peak+.035*Math.sin(u*17+id)*Math.sin(Math.PI*u);
-          crest.push(worldPoint(x,y,z));
-        }
-        ctx.beginPath();ctx.moveTo(...crest[0]);crest.slice(1).forEach(p=>ctx.lineTo(...p));
-        for(let i=26;i>=0;i--){
-          const u=i/26;
-          ctx.lineTo(...worldPoint(side*(.2+u*3.5)+bend,1.5+.16*Math.sin(Math.PI*u),z));
-        }
-        ctx.closePath();
-        ctx.fillStyle=colors.ridge;ctx.globalAlpha=fade*(.025+near*.085);ctx.fill();ctx.globalAlpha=1;
-        path(crest,colors.line,fade*(.035+near*.07),.6+near*.4);
+        const variation=Math.sin(id*2.73+side*2),x=side*(1.45+variation*.24);
+        const breadth=1.65+Math.cos(id*1.3+side)*.35;
+        const tall=1.75+Math.sin(id*3.1+side)*.35;
+        const left=worldPoint(x-breadth/2,1.65-tall,z),right=worldPoint(x+breadth/2,1.65,z);
+        ctx.globalAlpha=fade*(.28+(1-z/30)*.48);
+        ctx.drawImage(art.mountain(id+(side===-1?0:3)),left[0],left[1],right[0]-left[0],right[1]-left[1]);
       }
-      // Broken, broad wisps cross the valley floor, widening as they pass under
-      // the kite. They are scenery, so they never become note targets.
-      {
-        const wisp=[];
-        for(let i=0;i<=24;i++){
-          const x=-1.15+i*.095+.65*Math.sin(id*2.3);
-          wisp.push(worldPoint(x,1.45+.18*Math.sin(x*2+id*1.4),z));
-        }
-        path(wisp,colors.paper,fade*(.1+near*.1),(1+near*2)*3.8/(z+2));
+      ctx.globalAlpha=1;
+      // Curved wisps travel down a winding, unpainted river. Their opacity
+      // falls at either end so no row or straight seam appears on arrival.
+      const wisp=[];
+      for(let i=0;i<=36;i++){
+        const x=-1.6+i*.09+.25*Math.sin(id*1.7);
+        wisp.push(worldPoint(x,1.48+.15*Math.sin(x*2.4+id),z));
       }
+      ctx.lineCap='round';path(wisp,colors.paper,fade*.36,Math.max(1,18/(z+2)));
     }
-    // A few wisps in open air make forward travel visible above the valley too.
-    for(let i=0;i<30;i++){
+    // Distant birds are charcoal, much smaller than the rose musical petals.
+    for(let i=0;i<5;i++){
+      const drift=reduced?0:forward*.012;
+      const x=width*(.16+i*.034)+Math.sin(drift+i)*14;
+      const y=height*(.24+i*.012)+Math.cos(drift+i)*5;
+      const wing=3+Math.sin((reduced?0:elapsed*2)+i)*1.1;
+      path([[x-5,y-wing],[x,y],[x+5,y-wing*.7]],colors.ink,.23,.7);
+    }
+    for(let i=0;i<18;i++){
       const z=((i*1.731-forward)%22+22)%22;
       const angle=i*2.39996,x=Math.cos(angle)*2.4,y=Math.sin(angle)*1.6;
       const fade=Math.min(1,z/1.2)*Math.min(1,(22-z)/4);
-      path([worldPoint(x,y,z+.7),worldPoint(x,y,z)],colors.line,fade*.15*atmosphere,.45+1/(z+2));
+      const a=worldPoint(x,y,z+.7),b=worldPoint(x,y,z);
+      path([a,[(a[0]+b[0])/2+3,(a[1]+b[1])/2],b],colors.line,fade*.09,.45+1/(z+2));
     }
   }
   function curvePoint(points,t){
@@ -374,13 +371,13 @@
     // faster. Accumulated heading persists after the bank eases back to level.
     const world=worldView();
     ctx.save();ctx.translate(width*.5,height*.48);ctx.rotate(world.roll);ctx.scale(world.zoom,world.zoom);ctx.translate(-width*.5,-height*.48);
-    for(let layer=0;layer<3;layer++){
-      const depth=.1+layer*.12,base=height*(.51+layer*.09)+world.pitch*depth,amp=height*(.08-layer*.012),pts=[];
-      for(let x=-width*.5;x<=width*1.5;x+=10){const u=(x+world.pan*depth)/width;const y=base+Math.sin(u*7+layer*1.4+motion*.025)*amp+Math.sin(u*17-layer*.7)*amp*.25;pts.push([x,y]);}
-      ctx.beginPath();ctx.moveTo(pts[0][0],height*2);pts.forEach(p=>ctx.lineTo(...p));ctx.lineTo(width*1.5,height*2);ctx.closePath();ctx.globalAlpha=.035+layer*.018;ctx.fillStyle=colors.ridge;ctx.fill();ctx.globalAlpha=1;
-      path(pts,colors.line,.04+layer*.015,.6);
-      for(let j=1;j<4;j++)path(pts.map(([x,y])=>[x,y+j*5]),colors.line,.025,.5);
+    // Layered ink washes in the far distance establish a slow horizon.
+    for(let layer=0;layer<4;layer++){
+      const x=width*(-.32+layer*.39)-world.pan*.025;
+      ctx.globalAlpha=.10+layer%2*.035;
+      ctx.drawImage(art.mountain(layer+2),x,height*.04+world.pitch*.06,width*.68,height*.88);
     }
+    ctx.globalAlpha=1;
     drawPassage();
     ctx.restore();
     const {cx,cy,scale,tilt,project}=flightPose();
@@ -412,12 +409,12 @@
       const point=catchPoint(key),origin=gustPosition({keys:[key],time:t+approach},t);
       path([[origin.x,origin.y],point],colors.line,.16,.8);
     });
-    const dot=(x,y,hollow=false)=>{
-      ctx.save();ctx.shadowColor=colors.sail;ctx.shadowBlur=hollow?0:13;
-      ctx.beginPath();ctx.arc(x,y,hollow?7:8,0,Math.PI*2);ctx.fillStyle=hollow?colors.paper:colors.sail;ctx.fill();
-      ctx.shadowBlur=0;ctx.strokeStyle=colors.sail;ctx.lineWidth=2;ctx.stroke();
-      if(!hollow){ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fillStyle=colors.paper;ctx.fill();}ctx.restore();
-    };
+    function petal(point,key,n,open=false){
+      const v=approachVector(key);
+      const flutter=reduced?0:Math.sin(t*3+n.time)*.07;
+      const angle=Math.atan2(-v[1],-v[0])+flightPose().tilt+flutter;
+      art.petal(ctx,point[0],point[1],angle,open,colors.sail,colors.paper);
+    }
     visible.forEach(n=>{
       const points=[];
       n.keys.forEach(key=>{
@@ -425,23 +422,37 @@
         const head=n.armed && t>=n.time?target:[front.x,front.y];
         if(n.kind==='hold'){
           const visibleTail=gustPosition(n,t,key,Math.min(n.end,t+approach));
-          ctx.save();ctx.lineCap='round';path([head,[visibleTail.x,visibleTail.y]],colors.sail,n.armed?.5:.3,8);ctx.restore();
-          if(n.end-t<=approach)dot(tail.x,tail.y,true);
+                    ctx.save();ctx.lineCap='round';
+          const ribbon=[];
+          for(let i=0;i<=20;i++){
+            const u=i/20,bend=Math.sin(u*Math.PI)*3*Math.sin(n.time+t*.4);
+            ribbon.push([head[0]*(1-u)+visibleTail.x*u+bend,head[1]*(1-u)+visibleTail.y*u]);
+          }
+          path(ribbon,colors.sail,n.armed?.27:.16,9);
+          path(ribbon,colors.sail,n.armed?.7:.45,2.5);ctx.restore();
+          if(n.end-t<=approach)petal([tail.x,tail.y],key,n,true);
         }
         // The head is absorbed into the wing after a hold begins. The hollow
         // release tail remains distinct, and reaches precisely the same point.
-        if(!n.armed || t<n.time)dot(front.x,front.y);
+        if(!n.armed || t<n.time)petal([front.x,front.y],key,n);
         points.push(head);
       });
-      if(points.length===2)path(points,colors.sail,.35,1);
+      if(points.length===2){const [a,b]=points;path([a,[(a[0]+b[0])/2,(a[1]+b[1])/2+12],b],colors.sail,.28,.8);}
     });
     keys.forEach(key=>{
       if(difficulty==='easy' && !['a','d'].includes(key))return;
       const [x,y]=catchPoint(key);
       const flash=flashes[key]===undefined?0:Math.max(0,1-(t-flashes[key])*4);
       const active=held[key]!==null || running && notes.some(n=>!n.done && n.keys.includes(key) && Math.abs((n.armed?n.end:n.time)-t)<windowSize),edge=edgeTrace(key).map(p=>flightPose().project(...p));
-      ctx.save();ctx.lineCap='round';if(active || flash){ctx.shadowColor=colors['sail-light'];ctx.shadowBlur=14;}
-      path(edge,active || flash?colors['sail-light']:colors.ink,active || flash?1:.65,active || flash?3.5:2);ctx.restore();
+      ctx.save();ctx.lineCap='round';
+            path(edge,active || flash?colors.sail:colors.ink,active || flash?1:.6,active || flash?4:1.5);ctx.restore();
+      if(flash && !reduced){
+        const age=1-flash;
+        for(let i=0;i<4;i++){
+          const angle=i*1.7+key.charCodeAt(0),distance=10+age*27;
+          path([[x+Math.cos(angle)*distance,y+Math.sin(angle)*distance],[x+Math.cos(angle)*(distance+5),y+Math.sin(angle)*(distance+5)]],colors.sail,flash*.5,1.4);
+        }
+      }
     });
   }
   hands.forEach(button=>{
