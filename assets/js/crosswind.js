@@ -27,6 +27,7 @@
   const emptyHeld=()=>Object.fromEntries(keys.map(k=>[k,null]));
   let elapsed=0,lastFrame=0,bank=0,lift=0,streak=0,hits=0,notes=[],held=emptyHeld(),messageUntil=0,impulseX=0,impulseY=0,bestStreak=0;
   let demoEvents=[],demoIndex=0,flashes={},travelX=0,altitude=0;
+  let forward=0,airspeed=1,gust=0;
   const inputSources=Object.fromEntries(keys.map(k=>[k,new Set()]));
   let windowSize=.32,approach=3;
   let beat=.75,duration=50*beat;
@@ -46,6 +47,7 @@
   }
   function resetFlightView() {
     elapsed = bank = lift = travelX = altitude = 0;
+    forward=0;airspeed=1;gust=0;
     flashes = {};
     notes = [];
     startButton.textContent = 'Play';
@@ -108,8 +110,9 @@
   // One camera projection for the sail, edge contacts and incoming cues.
   // Note paths stay fixed in flight coordinates; banking changes the view.
   function flightPose(lean=bank,boost=lift){
-    const scale=Math.min((width-112)/302,1.25),tilt=-lean*(reduced?.025:.195);
-    const cx=width*.5+lean*Math.min(32,width*.05)*(reduced?.1:1),cy=height*.48-boost*(reduced?3:22);
+    const reach=reduced?0:(airspeed-1);
+    const scale=Math.min((width-112)/302,1.25)*(1-reach*.08),tilt=-lean*(reduced?.025:.195);
+    const cx=width*.5+lean*Math.min(32,width*.05)*(reduced?.1:1),cy=height*.48-boost*(reduced?3:22)-reach*12;
     const c=Math.cos(tilt),s=Math.sin(tilt);
     return {cx,cy,scale,tilt,project(x,y){return [cx+(x*c-y*s)*scale,cy+(x*s+y*c)*scale];},unproject(x,y){const dx=(x-cx)/scale,dy=(y-cy)/scale;return [dx*c+dy*s,-dx*s+dy*c];}};
   }
@@ -135,6 +138,67 @@
     return {x:point[0],y:point[1],target:catchPoint(key),local};
   }
   function worldView(){return {roll:bank*(reduced?0:.045),pan:reduced?0:travelX,pitch:reduced?0:altitude+lift*32,zoom:reduced?1:1-lift*.055};}
+  function advanceTravel(dt){
+    if(reduced)return;
+    // Always cruise forward. Lift trades speed for height; dives recover it.
+    // A caught gust gives a brief push, easing back without a camera snap.
+    const target=Math.max(.72,Math.min(1.45,1-lift*.25+gust*.2));
+    airspeed+=(target-airspeed)*(1-Math.exp(-dt*2));
+    forward+=dt*2.1*airspeed;
+    gust*=Math.exp(-dt*1.7);
+  }
+  function worldPoint(x,y,z){
+    const world=worldView(),perspective=3.8/(z+2);
+    const vx=width*(.5-bank*(reduced?0:.035));
+    const vy=height*.34+world.pitch*.12;
+    const lateral=Math.tanh(world.pan/width)*.45;
+    return [vx+(x-lateral)*width*.46*perspective,vy+(y*height*.34+world.pitch*.32)*perspective];
+  }
+  function drawPassage(){
+    // Permanent world slices approach in perspective, then leave below and to
+    // either side. Their shapes remain fixed as the camera passes through them.
+    const spacing=3,first=Math.floor(forward/spacing);
+    for(let row=8;row>=0;row--){
+      const id=first+row,z=(id+1)*spacing-forward;
+      const fade=Math.min(1,z/.9)*Math.max(0,Math.min(1,(25-z)/6));
+      const near=1-z/27;
+      for(const side of [-1,1]){
+        const crest=[];
+        const bend=.12*Math.sin(id*1.73+side);
+        for(let i=0;i<=26;i++){
+          const u=i/26,x=side*(.2+u*3.5)+bend;
+          const peak=Math.sin(Math.PI*u)**2*(.8+.18*Math.sin(id*2.4+side));
+          const y=1.5-peak+.035*Math.sin(u*17+id)*Math.sin(Math.PI*u);
+          crest.push(worldPoint(x,y,z));
+        }
+        ctx.beginPath();ctx.moveTo(...crest[0]);crest.slice(1).forEach(p=>ctx.lineTo(...p));
+        for(let i=26;i>=0;i--){
+          const u=i/26;
+          ctx.lineTo(...worldPoint(side*(.2+u*3.5)+bend,1.5+.16*Math.sin(Math.PI*u),z));
+        }
+        ctx.closePath();
+        ctx.fillStyle=colors.ridge;ctx.globalAlpha=fade*(.025+near*.085);ctx.fill();ctx.globalAlpha=1;
+        path(crest,colors.line,fade*(.035+near*.07),.6+near*.4);
+      }
+      // Broken, broad wisps cross the valley floor, widening as they pass under
+      // the kite. They are scenery, so they never become note targets.
+      {
+        const wisp=[];
+        for(let i=0;i<=24;i++){
+          const x=-1.15+i*.095+.65*Math.sin(id*2.3);
+          wisp.push(worldPoint(x,1.45+.18*Math.sin(x*2+id*1.4),z));
+        }
+        path(wisp,colors.paper,fade*(.1+near*.1),(1+near*2)*3.8/(z+2));
+      }
+    }
+    // A few wisps in open air make forward travel visible above the valley too.
+    for(let i=0;i<30;i++){
+      const z=((i*1.731-forward)%22+22)%22;
+      const angle=i*2.39996,x=Math.cos(angle)*2.4,y=Math.sin(angle)*1.6;
+      const fade=Math.min(1,z/1.2)*Math.min(1,(22-z)/4);
+      path([worldPoint(x,y,z+.7),worldPoint(x,y,z)],colors.line,fade*.15*atmosphere,.45+1/(z+2));
+    }
+  }
   function curvePoint(points,t){
     const p=points.map(v=>v.slice());for(let k=p.length-1;k>0;k--)for(let i=0;i<k;i++)p[i]=[p[i][0]*(1-t)+p[i+1][0]*t,p[i][1]*(1-t)+p[i+1][1]*t];return p[0];
   }
@@ -218,6 +282,7 @@
   function miss(note,text,t){if(note.done)return;note.done=true;streak=0;feedback(text,t);}
   function hit(note,t){
     if(note.done)return;note.done=true;note.hit=true;hits++;streak++;bestStreak=Math.max(bestStreak,streak);
+    gust=Math.min(1,gust+.65);
     for(const key of note.keys){flashes[key]=t;if(key==='a')impulseX=-1;if(key==='d')impulseX=1;if(key==='w')impulseY=1;if(key==='s')impulseY=-1;}
     const err=Math.max(...note.keys.map(k=>Math.abs((note.kind==='hold'?t:note.presses[k])-(note.kind==='hold'?note.end:note.time))));
     feedback((err<.075?'Clean':'Caught')+' · '+streak+' streak',t);
@@ -265,6 +330,7 @@
   function start(auto){
     if(loading || root.hidden)return;
     if(running)stop();generation++;running=true;demo=auto;elapsed=0;bank=0;lift=0;travelX=0;altitude=0;impulseX=0;impulseY=0;flashes={};hits=0;streak=0;bestStreak=0;messageUntil=0;lastFrame=performance.now();clockStart=performance.now();
+    forward=0;airspeed=1;gust=0;
     beat = 60 / (customTrack ? customTrack.bpm : levels[difficulty].bpm);
     duration = customTrack ? customTrack.buffer.duration + approach + .25 : 50 * beat;
     notes = customTrack ? customTrack.chart.map(note=>({...note,presses:{}})) : makeChart();
@@ -290,6 +356,7 @@
     bank += (targetBank - bank) * (1 - Math.exp(-dt * response));
     lift+=(Math.max(-1,Math.min(1,desiredY+impulseY))-lift)*(1-Math.exp(-dt*9));impulseX*=Math.exp(-dt*3);impulseY*=Math.exp(-dt*2.4);
     travelX+=bank*dt*115;altitude=Math.max(-100,Math.min(100,altitude+lift*dt*35));
+    advanceTravel(dt);
     phrase.textContent=levels[difficulty].label;
     count.textContent=demo?'DEMO':hits+' / '+notes.length;const pct=Math.min(100,elapsed/duration*100);bar.style.width=pct+'%';progress.setAttribute('aria-valuenow',String(Math.round(pct)));
     draw(elapsed);if(elapsed>=duration){stop(true);return;}raf=requestAnimationFrame(frame);
@@ -307,21 +374,14 @@
     // faster. Accumulated heading persists after the bank eases back to level.
     const world=worldView();
     ctx.save();ctx.translate(width*.5,height*.48);ctx.rotate(world.roll);ctx.scale(world.zoom,world.zoom);ctx.translate(-width*.5,-height*.48);
-    for(let layer=0;layer<5;layer++){
-      const depth=.18+layer*.23,base=height*(.62+layer*.09)+world.pitch*depth,amp=height*(.11-layer*.012),pts=[];
+    for(let layer=0;layer<3;layer++){
+      const depth=.1+layer*.12,base=height*(.51+layer*.09)+world.pitch*depth,amp=height*(.08-layer*.012),pts=[];
       for(let x=-width*.5;x<=width*1.5;x+=10){const u=(x+world.pan*depth)/width;const y=base+Math.sin(u*7+layer*1.4+motion*.025)*amp+Math.sin(u*17-layer*.7)*amp*.25;pts.push([x,y]);}
-      ctx.beginPath();ctx.moveTo(pts[0][0],height*2);pts.forEach(p=>ctx.lineTo(...p));ctx.lineTo(width*1.5,height*2);ctx.closePath();ctx.globalAlpha=.07+layer*.04;ctx.fillStyle=colors.ridge;ctx.fill();ctx.globalAlpha=1;
-      path(pts,colors.line,.08+layer*.025,.6);
+      ctx.beginPath();ctx.moveTo(pts[0][0],height*2);pts.forEach(p=>ctx.lineTo(...p));ctx.lineTo(width*1.5,height*2);ctx.closePath();ctx.globalAlpha=.035+layer*.018;ctx.fillStyle=colors.ridge;ctx.fill();ctx.globalAlpha=1;
+      path(pts,colors.line,.04+layer*.015,.6);
       for(let j=1;j<4;j++)path(pts.map(([x,y])=>[x,y+j*5]),colors.line,.025,.5);
     }
-    // Forward flow expands out of a vanishing point and sweeps across turns.
-    for(let i=0;i<32;i++){
-      const depth=((i*.137+motion*.14)%1),angle=i*2.39996;
-      const vx=width*.5-bank*width*.08,vy=height*.38+world.pitch*.25;
-      const farX=Math.cos(angle)*width*.95,farY=Math.sin(angle)*height*.95;
-      const p=depth*depth,tail=Math.max(0,depth-.045-Math.abs(bank)*.025),q=tail*tail;
-      path([[vx+farX*q,vy+farY*q],[vx+farX*p,vy+farY*p]],colors.line,(.035+depth*.11)*atmosphere,.7);
-    }
+    drawPassage();
     ctx.restore();
     const {cx,cy,scale,tilt,project}=flightPose();
     // Two distinct tension lines connect the hands to the kite's structure.

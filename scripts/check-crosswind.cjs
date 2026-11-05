@@ -1,7 +1,7 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const html=fs.readFileSync(require('path').join(__dirname,'../_projects/cadence.html'),'utf8');
 let source=fs.readFileSync(require('path').join(__dirname,'../assets/js/crosswind.js'),'utf8');new vm.Script(source);
-source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},snapshot(){return {hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
+source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={worldPoint,advanceTravel,time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},setSpeed(v){airspeed=v;},snapshot(){return {forward,airspeed,hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
 let now=0,frames=[],width=736,height=440,arcs=[],resize,draws=0;const listeners={};
 function element(name){return {name,style:{},dataset:{},textContent:'',disabled:false,attrs:{},events:{},addEventListener(k,fn){this.events[k]=fn;},setAttribute(k,v){this.attrs[k]=v;},remove(){},setPointerCapture(){},getBoundingClientRect(){return {width,height};}};}
 const context=new Proxy({}, {get(o,k){if(k==='createLinearGradient')return ()=>({addColorStop(){}});return (...args)=>{args.forEach(a=>{if(typeof a==='number')assert(Number.isFinite(a),k+' finite argument');});if(k==='arc')arcs.push(args);draws++;};},set(o,k,v){o[k]=v;return true;}});
@@ -50,6 +50,22 @@ for(const w of [320,440,441,736]){
   assert(api.catchPoint('w')[1]<api.catchPoint('a')[1] && api.catchPoint('s')[1]>api.catchPoint('a')[1]);
 }
 assert(!html.includes('laneLayout'));assert(!html.includes("fillText('HIT'"));
+// Forward travel must be present without banking, and respond smoothly to pitch.
+start();advance(1);assert(api.snapshot().forward>2 && api.snapshot().forward<2.2);assert.equal(api.snapshot().bank,0);
+key('keydown','w');advance(2);const climbSpeed=api.snapshot().airspeed;assert(climbSpeed<.85);
+key('keyup','w');key('keydown','s');advance(2);assert(api.snapshot().airspeed>1.15);key('keyup','s');
+listeners.blur();const stoppedDistance=api.snapshot().forward;advance(1);assert.equal(api.snapshot().forward,stoppedDistance,'Stopped flights freeze the passage');
+api.setPose(0,0);
+const far=api.worldPoint(1,1,15),near=api.worldPoint(1,1,2);
+assert(near[0]>far[0] && near[1]>far[1],'Scenery expands outward and down as it approaches');
+for(const speed of [.72,1.45]){
+  api.setSpeed(speed);
+  for(const k of ['a','w','s','d']){
+    const point=api.catchPoint(k),arrival=api.gustPosition({keys:[k],time:2},2);
+    assert.equal(arrival.x,point[0]);assert.equal(arrival.y,point[1]);
+  }
+}
+api.setSpeed(1);
 assert.equal(api.makeChart().length,20);assert.equal(new Set(api.makeChart().map(n=>n.kind)).size,3);
 start();at(2.5);key('keydown','a');assert(api.snapshot().notes[0].armed);at(3.6);assert.equal(hands[0].label.textContent,'Hold…');at(3.72);assert.equal(hands[0].label.textContent,'Release');at(3.75);key('keyup','a');assert.equal(api.snapshot().hits,1);
 assert(api.flightPose().tilt>.15 && api.flightPose().tilt<.20,'sustained left input banks between 9 and 12 degrees');
@@ -84,6 +100,7 @@ click('.cw-sound');assert.equal(elements['.cw-sound'].textContent,'Sound off');a
 sandbox.matchMedia=()=>({matches:true,addEventListener(){}});vm.runInNewContext(source,sandbox);
 const quiet=sandbox.testStudy;document.dispatchEvent({type:"cadence:mode",detail:{mode:"crosswind",level:"hard"}});quiet.setPose(-1,1);
 assert(Math.abs(quiet.flightPose().tilt)<.05);assert(Math.abs(quiet.worldView().roll)<.02);assert.equal(quiet.worldView().pan,0);assert.equal(quiet.worldView().pitch,0);assert.equal(quiet.worldView().zoom,1);
+quiet.advanceTravel(2);assert.equal(quiet.snapshot().forward,0,'Reduced motion suppresses forward travel');assert.equal(quiet.snapshot().airspeed,1);
 async function verifyRecording() {
   document.dispatchEvent({type:'cadence:mode',detail:{mode:'crosswind',level:'easy'}});
   assert.equal(quiet.makeChart().length,11);
