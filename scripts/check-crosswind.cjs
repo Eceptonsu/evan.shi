@@ -24,14 +24,14 @@ function start(){if(api.snapshot().running)click('.cw-start');baseline=now/1000;
 function at(t){advance(Math.max(0,baseline+t-now/1000));}
 function tap(k){key('keydown',k);key('keyup',k);}
 // Every contact is on the actual silhouette. Camera motion must project the
-// sail, buttons and note arrivals together, while preserving local note paths.
+// sail and buttons together, while incoming petals keep independent paths.
 assert.deepEqual(JSON.parse(JSON.stringify(api.sailPoints)),{a:[-151,33],d:[151,33],w:[0,-65],s:[0,56.5]});
 const hemMid=api.curvePoint([[-12,64],[0,49],[12,64]],.5);assert.equal(hemMid[1],api.sailPoints.s[1]);
 for(const w of [320,440,441,736]){
   width=w;height=w<=440?400:440;resize();const paths=[];
   for(const lean of [-1,0,1])for(const climb of [-1,0,1]){
     api.setPose(lean,climb);arcs=[];petals=[];api.draw(1);
-    paths.push(JSON.stringify(['a','w','s','d'].map(k=>api.gustPosition({keys:[k],time:2},1).local)));
+    paths.push(JSON.stringify(['a','w','s','d'].map(k=>[api.gustPosition({keys:[k],time:2},1).x,api.gustPosition({keys:[k],time:2},1).y])));
   ['a','w','s','d'].forEach((k,i)=>{
     const target=api.catchPoint(k),touch=hands[i],sail=api.flightPose().project(...api.sailPoints[k]);
     assert.equal(target[0],sail[0]);assert.equal(target[1],sail[1]);
@@ -41,12 +41,12 @@ for(const w of [320,440,441,736]){
     assert(origin.x>=8 && origin.x<=w-8 && origin.y>=40 && origin.y<=height-8,'approach remains visible through banking');
     const head=api.gustPosition(note,3),tail=api.gustPosition(note,4.25,k,note.end);
     assert(Math.abs(head.x-target[0])<1e-9);assert(Math.abs(head.y-target[1])<1e-9);assert(Math.abs(tail.x-target[0])<1e-9);assert(Math.abs(tail.y-target[1])<1e-9);
-    assert(Math.abs(api.gustPosition(note,2).x-(target[0]+origin.x)/2)<1e-9);
-    assert(Math.abs(api.gustPosition(note,2).y-(target[1]+origin.y)/2)<1e-9);
+    const beforeJoin=api.gustPosition(note,2.1-1e-5),afterJoin=api.gustPosition(note,2.1+1e-5);
+    assert(Math.hypot(afterJoin.x-beforeJoin.x,afterJoin.y-beforeJoin.y)<.01,'final approach joins without a position jump');
     for(const other of ['a','w','s','d'].slice(i+1)){const p=api.catchPoint(other);assert(Math.abs(p[0]-target[0])>=44 || Math.abs(p[1]-target[1])>=44,'44px touch areas must not overlap');}
   });
   }
-  assert(paths.every(p=>p===paths[0]),'banking must not rewrite local note paths');
+  assert(paths.every(p=>p===paths[0]),'banking must not move incoming petals outside the final approach');
   api.setPose(0,0);
   assert(api.catchPoint('a')[0]<api.catchPoint('w')[0] && api.catchPoint('d')[0]>api.catchPoint('w')[0]);
   assert(api.catchPoint('w')[1]<api.catchPoint('a')[1] && api.catchPoint('s')[1]>api.catchPoint('a')[1]);
@@ -70,7 +70,7 @@ for(const speed of [.72,1.45]){
 api.setSpeed(1);
 assert.equal(api.makeChart().length,20);assert.equal(new Set(api.makeChart().map(n=>n.kind)).size,3);
 start();at(2.5);key('keydown','a');assert(api.snapshot().notes[0].armed);at(3.6);assert.equal(hands[0].label.textContent,'Hold…');at(3.72);assert.equal(hands[0].label.textContent,'Release');at(3.75);key('keyup','a');assert.equal(api.snapshot().hits,1);
-assert(api.flightPose().tilt>.15 && api.flightPose().tilt<.20,'sustained left input banks between 9 and 12 degrees');
+assert(api.flightPose().tilt>.14 && api.flightPose().tilt<.18,'sustained left input retains a readable bank');
 assert(api.worldView().roll<0 && Math.abs(api.worldView().roll)<.05,'horizon rolls less than three degrees');
 assert(api.snapshot().travelX<-80,'sustained turn travels through the world');
 at(5);key('keydown','d');at(5.1);key('keyup','d');assert.equal(api.snapshot().notes[1].hit,false,'early release fails');
@@ -96,6 +96,8 @@ assert(petals.some(({x,y,open})=>x<contact[0] && !open && y<contact[1]));
 at(2.5);arcs=[];petals=[];api.draw(2.5);contact=api.catchPoint('a');assert(!petals.some(({x,open})=>Math.abs(x-contact[0])<1e-9 && !open));
 at(3.75);arcs=[];petals=[];api.draw(3.75);contact=api.catchPoint('a');assert(petals.some(({x,y,open})=>Math.abs(x-contact[0])<1e-9 && open && Math.abs(y-contact[1])<1e-9));key('keyup','a');assert.equal(api.snapshot().hits,1);
 listeners.blur();click('.cw-demo');advance(31.4);assert.equal(api.snapshot().hits,20,'demo executes every interaction type');assert.equal(api.snapshot().bestStreak,20);assert.equal(elements['.cw-status'].textContent,'Your turn. Ride the wind.');assert.equal(bar.style.width,'100%');assert(!api.snapshot().running);
+// Demonstration inputs belong to the musical clock even if rendering stalls.
+click('.cw-demo');step(now/1000+31.4);assert.equal(api.snapshot().hits,20,'a delayed frame cannot make the demo miss notes');
 click('.cw-sound');assert.equal(elements['.cw-sound'].textContent,'Sound off');assert(html.includes('<!doctype html>'));assert(!html.includes('\\"'));
 // Reduced-motion preference keeps scoring and edge positions functional while
 // suppressing camera travel, zoom and most roll.

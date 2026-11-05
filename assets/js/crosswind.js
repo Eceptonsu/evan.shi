@@ -108,12 +108,12 @@
     else{resetFlightView();count.textContent=tempoLabel();status.textContent='Ready to fly';}
     if(event.detail.mode==='crosswind')resize();
   });
-  // One camera projection for the sail, edge contacts and incoming cues.
-  // Note paths stay fixed in flight coordinates; banking changes the view.
+  // The kite moves in the foreground. Incoming wind has its own steady frame;
+  // it must not inherit the roll or translation of a key press.
   function flightPose(lean=bank,boost=lift){
     const reach=reduced?0:(airspeed-1);
-    const scale=Math.min((width-112)/302,1.25)*(1-reach*.08),tilt=-lean*(reduced?.025:.195);
-    const cx=width*.5+lean*Math.min(32,width*.05)*(reduced?.1:1),cy=height*.48-boost*(reduced?3:22)-reach*12;
+    const scale=Math.min((width-132)/302,1.08)*(1-reach*.045),tilt=-lean*(reduced?.025:.17);
+    const cx=width*.5+lean*Math.min(50,width*.06)*(reduced?.1:1),cy=height*.61-boost*(reduced?3:18)-reach*8;
     const c=Math.cos(tilt),s=Math.sin(tilt);
     return {cx,cy,scale,tilt,project(x,y){return [cx+(x*c-y*s)*scale,cy+(x*s+y*c)*scale];},unproject(x,y){const dx=(x-cx)/scale,dy=(y-cy)/scale;return [dx*c+dy*s,-dx*s+dy*c];}};
   }
@@ -123,20 +123,27 @@
     return flightPose().project(...sailPoints[key]);
   }
   function approachVector(key){
-    const target=flightPose(0,0).project(...sailPoints[key]);
+    const target=windFrame().project(...sailPoints[key]);
     if(key==='a')return [-Math.min(width*.16,target[0]-40),-height*.16];
     if(key==='d')return [Math.min(width*.16,width-40-target[0]),-height*.16];
-    if(key==='w')return [0,-Math.min(height*.20,target[1]-70)];
+    if(key==='w')return [0,-Math.min(height*.27,target[1]-82)];
     return [0,Math.min(height*.23,height-28-target[1])];
+  }
+  function windFrame(){
+    const scale=Math.min((width-132)/302,1.08);
+    return {project:(x,y)=>[width*.5+x*scale,height*.61+y*scale]};
   }
   function positionControls(){
     const pose=flightPose();hands.forEach(button=>{const [x,y]=catchPoint(button.dataset.key);button.style.left=x+'px';button.style.top=y+'px';button.style.transform='translate(-50%,-50%) rotate('+pose.tilt+'rad)';});
   }
   function gustPosition(note,t,key=note.keys[0],edge=note.time){
-    const neutral=flightPose(0,0),base=neutral.project(...sailPoints[key]),v=approachVector(key),remaining=(edge-t)/approach;
-    const local=neutral.unproject(base[0]+v[0]*remaining,base[1]+v[1]*remaining);
-    const point=flightPose().project(...local);
-    return {x:point[0],y:point[1],target:catchPoint(key),local};
+    const base=windFrame().project(...sailPoints[key]),v=approachVector(key),remaining=(edge-t)/approach;
+    const target=catchPoint(key);
+    // Keep most of the approach completely independent of steering. A smooth
+    // final curve joins the actual sail edge, including held-note releases.
+    const u=Math.max(0,Math.min(1,1-(edge-t)/.9)),join=u*u*(3-2*u);
+    return {x:base[0]+v[0]*remaining+(target[0]-base[0])*join,
+      y:base[1]+v[1]*remaining+(target[1]-base[1])*join,target};
   }
   function worldView(){return {roll:bank*(reduced?0:.045),pan:reduced?0:travelX,pitch:reduced?0:altitude+lift*32,zoom:reduced?1:1-lift*.055};}
   function advanceTravel(dt){
@@ -167,8 +174,8 @@
         const breadth=1.65+Math.cos(id*1.3+side)*.35;
         const tall=1.75+Math.sin(id*3.1+side)*.35;
         const left=worldPoint(x-breadth/2,1.65-tall,z),right=worldPoint(x+breadth/2,1.65,z);
-        ctx.globalAlpha=fade*(.28+(1-z/30)*.48);
-        ctx.drawImage(art.mountain(id+(side===-1?0:3)),left[0],left[1],right[0]-left[0],right[1]-left[1]);
+        ctx.globalAlpha=fade*(.52+(1-z/30)*.48);
+        art.drawMountain(ctx,id+(side===-1?0:3),left[0],left[1],right[0]-left[0],right[1]-left[1]);
       }
       ctx.globalAlpha=1;
       // Curved wisps travel down a winding, unpainted river. Their opacity
@@ -284,9 +291,9 @@
     const err=Math.max(...note.keys.map(k=>Math.abs((note.kind==='hold'?t:note.presses[k])-(note.kind==='hold'?note.end:note.time))));
     feedback((err<.075?'Clean':'Caught')+' · '+streak+' streak',t);
   }
-  function press(key){
+  function press(key,t=time()){
     if(!running || held[key]!==null || difficulty==='easy' && !['a','d'].includes(key))return;
-    const t=time();held[key]=t;
+    held[key]=t;
     const note=notes.find(n=>!n.done && !n.armed && n.keys.includes(key) && Math.abs(n.time-t)<=windowSize);
     if(note){
       note.presses[key]=t;
@@ -299,9 +306,9 @@
     }else{streak=0;feedback('Wait for the marker',t);}
     controlCues(activeNote(),t);
   }
-  function release(key,cancel=false){
+  function release(key,cancel=false,t=time()){
     if(held[key]===null)return;
-    const t=time();held[key]=null;
+    held[key]=null;
     if(!running)return;
     const note=notes.find(n=>!n.done && n.armed && n.keys.includes(key));
     if(note){
@@ -341,7 +348,7 @@
   }
   function frame(now){
     if(!running)return;elapsed=time();const dt=Math.min(.05,(now-lastFrame)/1000);lastFrame=now;
-    if(demo)while(demoIndex<demoEvents.length && elapsed>=demoEvents[demoIndex].t){const event=demoEvents[demoIndex++];event.down?press(event.key):release(event.key);}
+    if(demo)while(demoIndex<demoEvents.length && elapsed>=demoEvents[demoIndex].t){const event=demoEvents[demoIndex++];event.down?press(event.key,event.t):release(event.key,false,event.t);}
     if(difficulty==='medium')for(const n of notes)if(!n.done && n.armed && elapsed>=n.end)hit(n,elapsed);
     for(const n of notes)if(!n.done && elapsed>(n.armed?n.end:n.time)+windowSize)miss(n,n.armed?'Release at the ribbon’s end':'Missed · next wind',elapsed);
     const next=activeNote();
@@ -375,26 +382,13 @@
     for(let layer=0;layer<4;layer++){
       const x=width*(-.32+layer*.39)-world.pan*.025;
       ctx.globalAlpha=.10+layer%2*.035;
-      ctx.drawImage(art.mountain(layer+2),x,height*.04+world.pitch*.06,width*.68,height*.88);
+      art.drawMountain(ctx,layer+2,x,height*.04+world.pitch*.06,width*.68,height*.88);
     }
     ctx.globalAlpha=1;
     drawPassage();
     ctx.restore();
-    const {cx,cy,scale,tilt,project}=flightPose();
-    // Two distinct tension lines connect the hands to the kite's structure.
-    [-1,1].forEach(side=>{
-      const attachment=project(side*53,25),handX=width*(side===-1?.25:.75),taut=held[side===-1?'a':'d']!==null;
-      ctx.beginPath();ctx.moveTo(handX,height+12);ctx.quadraticCurveTo(handX+side*(taut?0:22),height*.75,attachment[0],attachment[1]);ctx.strokeStyle=colors.line;ctx.globalAlpha=taut?.8:.35;ctx.lineWidth=taut?1.15:.8;ctx.stroke();ctx.globalAlpha=1;
-    });
-    ctx.save();ctx.translate(cx,cy);ctx.rotate(tilt);ctx.scale(scale,scale);
-    const flex=clothFlex();
-    const sail=ctx.createLinearGradient(-140,-45,100,80);sail.addColorStop(0,colors['sail-light']);sail.addColorStop(.56,colors.sail);sail.addColorStop(1,colors['sail-light']);
-    ctx.fillStyle=sail;ctx.beginPath();ctx.moveTo(0,-65);ctx.bezierCurveTo(-42,-54,-103,-16+flex,-151,33);ctx.bezierCurveTo(-94,21,-50,33,-12,64);ctx.quadraticCurveTo(0,49,12,64);ctx.bezierCurveTo(50,33,94,21,151,33);ctx.bezierCurveTo(103,-16-flex,42,-54,0,-65);ctx.closePath();ctx.fill();
-    // Translucent panels, a bent leading edge, seams and a quiet trailing hem.
-    ctx.fillStyle=colors['sail-light'];ctx.globalAlpha=.42;ctx.beginPath();ctx.moveTo(0,-65);ctx.quadraticCurveTo(-18,2,-12,64);ctx.quadraticCurveTo(-48,29,-92,26);ctx.quadraticCurveTo(-62,-18,0,-65);ctx.fill();ctx.globalAlpha=.26;ctx.beginPath();ctx.moveTo(0,-65);ctx.quadraticCurveTo(51,-12,151,33);ctx.quadraticCurveTo(87,5,12,64);ctx.quadraticCurveTo(22,1,0,-65);ctx.fill();ctx.globalAlpha=1;
-    ctx.strokeStyle=colors.paper;ctx.globalAlpha=.35;ctx.lineWidth=.7;
-    [-1,1].forEach(side=>{for(let j=1;j<5;j++){ctx.beginPath();ctx.moveTo(0,-65);ctx.quadraticCurveTo(side*j*18,-16,side*(12+j*27),35-j*3-side*flex*j/4);ctx.stroke();}});
-    ctx.globalAlpha=.5;ctx.strokeStyle=colors.ink;ctx.lineWidth=.65;ctx.beginPath();ctx.moveTo(-151,33);ctx.bezierCurveTo(-103,-16+flex,-42,-54,0,-65);ctx.bezierCurveTo(42,-54,103,-16-flex,151,33);ctx.stroke();ctx.globalAlpha=.2;ctx.beginPath();ctx.moveTo(0,-65);ctx.quadraticCurveTo(4,0,0,55);ctx.stroke();ctx.globalAlpha=1;ctx.restore();
+    const {cx,cy,scale,tilt}=flightPose();
+    art.kite(ctx,{cx,cy,scale,tilt},clothFlex(),colors);
     // A fine, slightly irregular weave gives the otherwise sparse scene material.
     ctx.fillStyle=colors.ink;ctx.globalAlpha=.025*atmosphere;
     for(let i=0;i<420;i++){const x=(Math.sin(i*127.1)*43758.5453)%1,y=(Math.sin(i*311.7)*96321.912)%1;ctx.fillRect(Math.abs(x)*width,Math.abs(y)*height,1,1);}ctx.globalAlpha=1;
@@ -406,13 +400,13 @@
     // point on the sail; the native button uses that exact same coordinate.
     const activeKeys=new Set(visible.flatMap(n=>n.keys));
     activeKeys.forEach(key=>{
-      const point=catchPoint(key),origin=gustPosition({keys:[key],time:t+approach},t);
-      path([[origin.x,origin.y],point],colors.line,.16,.8);
+      const trace=Array.from({length:25},(_,i)=>{const p=gustPosition({keys:[key],time:t+approach*(1-i/24)},t);return [p.x,p.y];});
+      path(trace,colors.line,.12,.8);
     });
     function petal(point,key,n,open=false){
       const v=approachVector(key);
       const flutter=reduced?0:Math.sin(t*3+n.time)*.07;
-      const angle=Math.atan2(-v[1],-v[0])+flightPose().tilt+flutter;
+      const angle=Math.atan2(-v[1],-v[0])+flutter;
       art.petal(ctx,point[0],point[1],angle,open,colors.sail,colors.paper);
     }
     visible.forEach(n=>{
@@ -421,12 +415,13 @@
         const front=gustPosition(n,t,key),tail=gustPosition(n,t,key,n.end),target=catchPoint(key);
         const head=n.armed && t>=n.time?target:[front.x,front.y];
         if(n.kind==='hold'){
-          const visibleTail=gustPosition(n,t,key,Math.min(n.end,t+approach));
-                    ctx.save();ctx.lineCap='round';
+          ctx.save();ctx.lineCap='round';
           const ribbon=[];
           for(let i=0;i<=20;i++){
             const u=i/20,bend=Math.sin(u*Math.PI)*3*Math.sin(n.time+t*.4);
-            ribbon.push([head[0]*(1-u)+visibleTail.x*u+bend,head[1]*(1-u)+visibleTail.y*u]);
+            const from=n.armed?Math.max(t,n.time):n.time,to=Math.min(n.end,t+approach);
+            const p=gustPosition(n,t,key,from+(to-from)*u);
+            ribbon.push([p.x+bend,p.y]);
           }
           path(ribbon,colors.sail,n.armed?.27:.16,9);
           path(ribbon,colors.sail,n.armed?.7:.45,2.5);ctx.restore();
@@ -445,7 +440,7 @@
       const flash=flashes[key]===undefined?0:Math.max(0,1-(t-flashes[key])*4);
       const active=held[key]!==null || running && notes.some(n=>!n.done && n.keys.includes(key) && Math.abs((n.armed?n.end:n.time)-t)<windowSize),edge=edgeTrace(key).map(p=>flightPose().project(...p));
       ctx.save();ctx.lineCap='round';
-            path(edge,active || flash?colors.sail:colors.ink,active || flash?1:.6,active || flash?4:1.5);ctx.restore();
+      path(edge,active || flash?colors.sail:colors.ink,active || flash?1:.6,active || flash?4:1.5);ctx.restore();
       if(flash && !reduced){
         const age=1-flash;
         for(let i=0;i<4;i++){

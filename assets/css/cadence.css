@@ -80,3 +80,54 @@ footer { display:flex; justify-content:space-between; gap:15px; border-top:1px s
 #crosswind .cw-name { margin:0; }
 #crosswind .cw-top { padding-top:18px; }
 @media(max-width:650px) { .modes { grid-template-columns:repeat(3,1fr); } .modes button { padding:13px 8px; font-size:14px; } .modes button>span { margin-right:6px; } .session-settings { gap:10px; } .intro { padding:20px 0; } }
+
+/* The three instruments share paper, silk, ink and open landscape. */
+.instrument { background:var(--paper); border:1px solid var(--line); border-radius:3px; overflow:hidden; }
+.song-picker { border:0; padding:0 0 18px; gap:20px; }
+.toolbar { border:0; padding:18px 26px 0; }
+.practice-title { display:flex; align-items:baseline; }
+.mode-label { margin:0; color:var(--ink); font:400 30px Georgia,serif; letter-spacing:-1px; }
+.readout { padding:20px 26px 0; align-items:baseline; }
+.readout h2 { font:400 23px Georgia,serif; letter-spacing:-.3px; }
+.instrument[data-mode="drone"] .readout h2 { display:none; }
+.instrument[data-mode="drone"] .readout p { margin-top:10px; }
+.scoreboard { gap:22px; }.scoreboard strong { font:27px Georgia,serif; }
+.screen { position:relative; padding:0; min-height:245px; }
+#practice-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+#melody-view,#drone-view { position:relative; z-index:1; }
+#melody-view { padding:48px 24px 45px; min-height:245px; }
+.phrase { gap:14px; flex-wrap:wrap; }
+.phrase>span { position:relative; isolation:isolate; width:43px; height:49px; border:0; font:19px Georgia,serif; background:none!important; color:var(--ink); }
+.phrase>span:not(.empty-phrase)::before { content:''; position:absolute; inset:3px -2px; z-index:-1; border:1px solid #c49aaa; background:var(--paper); border-radius:70% 5% 70% 5%; transform:rotate(-22deg); }
+.phrase>span.current { color:var(--orange); }
+.phrase>span.current::before { border-color:var(--orange); border-width:2px; }
+.phrase>span.done::before { background:#d9b3be; border-color:#c68b9f; }
+.phrase>span.sounding::before { background:#ad5e78; border-color:#ad5e78; }
+.phrase>span.sounding { color:var(--paper); }
+.empty-phrase { visibility:hidden; }
+.phrase-caption { margin-top:10px; font:12px Arial,sans-serif; }
+.feedback { color:var(--muted); padding-left:26px; font:12px/1.7 Arial,sans-serif; }
+.keyboard { margin:0 26px; height:126px; gap:5px; }
+.key { background:linear-gradient(#f9f4ef,#efe5e2); border:1px solid #c8b7ba; border-bottom:3px solid #b9a2a8; border-radius:2px 2px 7px 7px; }
+.key span { font:22px Georgia,serif; }.key kbd { color:var(--muted); }
+.key.active { background:#ad5e78; border-color:#935168; }
+.transport { padding:22px 26px; }.transport button { border-radius:3px; }
+.transport button.primary { background:var(--ink); border-color:var(--ink); color:var(--paper); min-width:100px; }
+#drone-view { padding:20px 26px 24px; min-height:245px; }
+.drone-display { flex-direction:column; align-items:center; gap:8px; padding:28px 0 26px; }
+.drone-display strong { font:58px Georgia,serif; color:var(--ink); }
+.drone-display span { font:12px Arial,sans-serif; }
+.drone-settings { flex-wrap:wrap; gap:12px 24px; }
+.scene-controls { margin-bottom:0; }
+.game-canvas { background:var(--paper); border-radius:2px; }
+#flight-canvas { margin:12px 0 0; }
+#drone-view:has(#flight-canvas:not([hidden])) .drone-display { display:none; }
+#drone-view:has(#flight-canvas:not([hidden])) .drone-settings { margin-top:14px; }
+@media(max-width:600px) {
+  .toolbar { padding:18px 18px 0; }.mode-label { font-size:27px; }
+  .readout { padding:16px 18px 0; gap:10px; }.readout h2 { margin:8px 0; }
+  .keyboard { margin:0 18px; height:112px; gap:3px; }.key span { font-size:19px; }
+  #melody-view { padding:30px 18px; }.phrase { gap:9px; }.phrase>span { width:32px; height:43px; }
+  #drone-view { padding:14px 18px 20px; }.drone-settings { font-size:12px; }
+  .transport { padding:20px 18px; }.feedback { padding-left:18px; }
+}

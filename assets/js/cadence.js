@@ -3,7 +3,8 @@
   const $ = (id) => document.getElementById(id);
   const C = window.CadenceCore;
   const Lab = window.CadenceLab;
-  const flightScene = new Lab.Scene($('flight-canvas'));
+  const flightScene = new window.CadenceArt.Scene($('flight-canvas'));
+  const practiceScene = new window.CadenceArt.Scene($('practice-canvas'));
   let uploaded = null, uploadGeneration = 0, microphone = null;
   function stopMicrophone() { if (microphone) { microphone.stream.getTracks().forEach(t=>t.stop()); microphone.source.disconnect(); microphone.analyser.disconnect(); microphone=null; } }
   const names = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C↑'];
@@ -71,8 +72,11 @@
     for(const name of ['melody','drone'])$(name+'-view').hidden=name!==mode;
     $('keyboard').hidden=mode!=='melody';$('record').parentElement.hidden=mode==='drone';$('score').parentElement.hidden=mode==='drone';
     const flight=mode==='drone' && $('tune-mode').value==='flight';
-    text('mode-label',mode==='melody'?'02 / REPEAT':'03 / SUSTAIN');
-    text('phase','READY');text('start',mode==='melody'?'Play ↗':flight?'Start microphone':'Start drone');
+    $('practice-canvas').hidden=flight;
+    text('mode-label',mode==='melody'?'Repeat':'Sustain');
+    text('practice-seal',mode==='melody'?'和':'息');
+    $('instrument').dataset.mode=mode;
+    text('phase','READY');text('start',mode==='melody'?'Play':flight?'Start microphone':'Start drone');
     $('flight-canvas').hidden=!flight;if(flight)flightScene.draw('flight',0);
     text('headline',mode==='drone'?'Sustain':song().title);
     text('instruction',mode==='melody'?'Listen, then play it back.':flight?'Hold the target note to fly through six gates.':'Play along with the drone.');
@@ -81,6 +85,7 @@
     text('scoring',mode==='melody'?'100 per new correct note. 150 bonus for a phrase without misses or replays.':flight?'Hold within 35 / 25 / 15 cents on Easy / Medium / Hard for the final 0.6 seconds before each gate. 100 points per gate.':'Rest whenever you need to.');
     $('phrase').replaceChildren();const blank=document.createElement('span');blank.className='empty-phrase';blank.textContent='●  ●  ●';$('phrase').append(blank);
     text('phrase-caption','');scores();droneDisplay();
+    practiceScene.draw(mode==='melody'?'repeat':'drone',0);
   }
   function droneDisplay() { text('drone-note', $('pitch').selectedOptions[0].textContent); text('drone-frequency', `${(Number($('tuning').value) * 2 ** ((Number($('pitch').value) - 69) / 12)).toFixed(1)} Hz`); }
   function slots() {
@@ -106,6 +111,8 @@
     try { await sound(); } catch { text('feedback', 'Audio could not start. Allow sound in your browser and try again.'); return; }
     if (token !== generation || document.hidden || (run && !['input', 'over'].includes(run.phase))) return;
     audio.note(C.midi[index]);
+    practiceScene.flash(audio.heard,true,index);
+    practiceScene.draw('repeat',audio.heard,[index]);
     const key = $('keyboard').children[index]; key.classList.add('active'); setTimeout(() => key.classList.remove('active'), 140);
     if (!run || run.phase === 'over') return;
     if (index === run.phrase[run.position]) {
@@ -159,8 +166,10 @@
   function tick() {
     if (!run || run.phase === 'over') return;
     const now = audio.heard;
+    if(run.phase!=='flight')practiceScene.draw(mode==='melody'?'repeat':'drone',now,mode==='melody'?[run.position]:[]);
     if (run.phase === 'listen') {
       const pos = run.onsets.findIndex((event) => now >= event.at && now < event.end);
+      if(pos>=0 && pos!==run.visualNote){practiceScene.flash(now,true,run.phrase[pos]);run.visualNote=pos;}
       [...$('phrase').children].forEach((el, i) => el.classList.toggle('sounding', pos === i));
       [...$('keyboard').children].forEach((el, i) => el.classList.toggle('active', level() === 'easy' && pos >= 0 && pos < run.phrase.length && run.phrase[pos] === i));
       if (now >= run.listenEnd) {
@@ -201,7 +210,7 @@
     microphone.data=new Float32Array(analyser.fftSize);
     run.phase='flight';run.flightStart=audio.now;run.gate=0;run.hold=0;run.hits=0;run.lastFrame=audio.now;run.lastPitch=0;run.cents=null;
     run.target=Number($('tuning').value)*2**((Number($('pitch').value)-69)/12);
-    text('phase','MIC ON');text('headline',`Hold ${$('pitch').selectedOptions[0].textContent}`);text('instruction','Keep the glider centered through each gate.');text('feedback','Microphone stays on this device.');
+    text('phase','MIC ON');text('headline',`Hold ${$('pitch').selectedOptions[0].textContent}`);text('instruction',`Hold ${$('pitch').selectedOptions[0].textContent}. Keep the kite centered through each gate.`);text('feedback','Microphone stays on this device.');
     $('flight-canvas').hidden=false;flightScene.draw('flight',audio.now);
   }
   function tickFlight(now) {
