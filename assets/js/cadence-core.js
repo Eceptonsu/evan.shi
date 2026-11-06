@@ -42,7 +42,21 @@
     if (level === 'hard') for (const event of score.events) if (event.note >= 0 && event.duration >= 2) beats.push(event.beat + 1);
     return [...new Set(beats)].sort((a,b) => a-b);
   }
-  const api = { configs, midi, phrase, rhythm, judgment, songs, arrangement, songPhrases, songTargets };
+  function noteName(pitch, letter) {
+    const natural=[0,2,4,5,7,9,11],i=letter%7;
+    const accidental=((pitch%12-natural[i]+18)%12)-6;
+    return 'CDEFGAB'[i]+(accidental===1?'♯':accidental===-1?'♭':'')+(Math.floor((pitch-accidental)/12)-1);
+  }
+  function flightScore(id, section, level, tonic = 60) {
+    const score = arrangement(id, section), beat = { easy:2, medium:1.6, hard:1.3 }[level];
+    const notes = score.events.filter(e => e.note >= 0).map(e => {
+      const pitch = midi[e.note] + tonic - 60;
+      const letter=[0,2,4,5,7,9,11].indexOf(tonic%12)+e.note;
+      return { midi:pitch, label:noteName(pitch,letter), start:e.beat * beat, end:(e.beat + e.duration) * beat };
+    });
+    return { notes, duration:score.beats * beat, low:Math.min(...notes.map(n => n.midi)), high:Math.max(...notes.map(n => n.midi)), hold:{ easy:.5, medium:.4, hard:.3 }[level] };
+  }
+  const api = { configs, midi, phrase, rhythm, judgment, songs, arrangement, songPhrases, songTargets, noteName, flightScore };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CadenceCore = api;
 }(typeof window !== 'undefined' ? window : globalThis));

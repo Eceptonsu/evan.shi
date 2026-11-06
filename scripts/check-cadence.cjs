@@ -28,6 +28,10 @@ for (const id of Object.keys(C.songs)) {
     assert.ok(arrangement.events.every((e) => e.duration > 0 && e.beat >= 0 && (e.note === -1 || Number.isInteger(C.midi[e.note]))));
     for (const level of Object.keys(C.configs)) {
       const targets = C.songTargets(id, section, level);
+      const flight=C.flightScore(id,section,level,62);
+      assert.deepEqual(flight.notes.map(n=>n.midi),arrangement.events.filter(e=>e.note>=0).map(e=>C.midi[e.note]+2));
+      assert(flight.notes.every(n=>n.end-n.start>.24+flight.hold),'Every note leaves time after its cue to hold the pitch');
+      assert(flight.notes.every(n=>n.end<=flight.duration),'Every gate arrives before the score ends');
       assert.ok(targets.length > 0 && targets.at(-1) < arrangement.beats);
       assert.ok(targets.every((t,i) => i === 0 || t > targets[i - 1]));
       const phrases = C.songPhrases(id, section, level);
@@ -39,6 +43,8 @@ for (const id of Object.keys(C.songs)) {
   }
 }
 const html = fs.readFileSync(path.join(__dirname, '../_projects/cadence.html'), 'utf8');
+assert.equal(C.flightScore('joy','0','easy',64).notes[0].label,'G♯4','E major uses a sharp spelling');
+assert.equal(C.flightScore('joy','0','easy',65).notes[2].label,'B♭4','F major uses a flat spelling');
 const js = fs.readFileSync(path.join(__dirname, '../assets/js/cadence.js'), 'utf8');
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
 assert.equal(new Set(ids).size, ids.length, 'No duplicate DOM IDs');

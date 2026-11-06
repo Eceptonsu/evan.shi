@@ -33,7 +33,7 @@
       o.type = kind === 'note' ? 'triangle' : 'sine';
       o.frequency.setValueAtTime(kind === 'kick' ? 130 : kind === 'tick' ? 1200 : frequency, at);
       if (kind === 'kick') o.frequency.exponentialRampToValueAtTime(45, at + .12);
-      const amplitude = kind === 'bass' ? .12 : kind === 'backing' ? .085 : kind === 'kick' ? .12 : .25;
+      const amplitude = kind === 'cue' ? .16 : kind === 'bass' ? .12 : kind === 'backing' ? .085 : kind === 'kick' ? .12 : .25;
       g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(amplitude, at + .008);
       if (duration < 5) g.gain.exponentialRampToValueAtTime(.001, at + duration);
       else { g.gain.setValueAtTime(amplitude, at + duration - .05); g.gain.linearRampToValueAtTime(0, at + duration); }
@@ -63,33 +63,40 @@
   function choose(next) {
     clear(); mode=['crosswind','melody','sustain'].includes(next)?next:'crosswind';
     $('crosswind').hidden=mode!=='crosswind';$('practice-panel').hidden=mode==='crosswind';
-    $('active-track').textContent=mode==='crosswind'?uploaded?.name||'First flight':mode==='sustain'?'Concert pitch':song().title;
+    $('active-track').textContent=mode==='crosswind'?uploaded?.name||'First flight':song().title;
     $('remove-upload').hidden=!uploaded;
     $('difficulty').parentElement.hidden=false;
     document.dispatchEvent(new CustomEvent('cadence:mode',{detail:{mode,level:level()}}));
     document.querySelectorAll('[data-mode]').forEach(el=>el.setAttribute('aria-pressed',el.dataset.mode===mode));
     if(mode==='crosswind')return;
-    $('song-picker').hidden=mode==='sustain';text('song-credit',song().credit);
+    $('song-picker').hidden=false;text('song-credit',song().credit);
     for(const name of ['melody','sustain'])$(name+'-view').hidden=name!==mode;
     $('keyboard').hidden=mode!=='melody';$('record').parentElement.hidden=mode==='sustain';$('score').parentElement.hidden=mode==='sustain';
     const flight=mode==='sustain';
-    $('volume-control').hidden=flight;
+    $('volume-control').hidden=false;
     $('practice-canvas').hidden=flight;
     text('mode-label',mode==='melody'?'Repeat':'Sustain');
     text('practice-seal',mode==='melody'?'和':'息');
     $('instrument').dataset.mode=mode;
     text('phase','READY');text('start',mode==='melody'?'Play':'Start microphone');
-    $('flight-canvas').hidden=!flight;if(flight)flightScene.draw('flight',0);
+    $('flight-canvas').hidden=!flight;
     text('headline',mode==='sustain'?'Sustain':song().title);
-    text('instruction',mode==='melody'?'Listen, then play it back.':'Hold the target note to fly through six gates.');
+    text('instruction',mode==='melody'?'Listen, then play it back.':'Hear each note. Hold it through its ring.');
     text('feedback','');text('run-detail',mode==='melody'?'A S D F G H J K':'Concert pitch');
-    text('help',mode==='melody'?'Repeat each phrase. Easy shows the keys. Three misses end the run; replay whenever you need to. Pitch is scored; rhythm is free.':'Play a single steady note into your microphone. Sharp moves up; flat moves down. Microphone audio is processed locally and is not recorded.');
-    text('scoring',mode==='melody'?'100 per new correct note. 150 bonus for a phrase without misses or replays.':'Hold within 35 / 25 / 15 cents on Easy / Medium / Hard for the final 0.6 seconds before each gate. 100 points per gate.');
+    text('help',mode==='melody'?'Repeat each phrase. Easy shows the keys. Three misses end the run; replay whenever you need to. Pitch is scored; rhythm is free.':'Play or sing the note on each ring. A short cue introduces every note; follow the melody as the rings rise and fall. Listen previews the flight without a microphone. Headphones give the clearest pitch reading. Microphone audio stays on this device and is not recorded.');
+    text('scoring',mode==='melody'?'100 per new correct note. 150 bonus for a phrase without misses or replays.':'100 per ring. Easy / Medium / Hard: hold within 35 / 25 / 15 cents for the final 0.5 / 0.4 / 0.3 seconds. The brief guide cue is excluded from scoring.');
     $('phrase').replaceChildren();const blank=document.createElement('span');blank.className='empty-phrase';blank.textContent='●  ●  ●';$('phrase').append(blank);
     text('phrase-caption','');scores();pitchDisplay();
     if(mode==='melody')practiceScene.draw('repeat',0);
   }
-  function pitchDisplay() { if(mode==='sustain')text('run-detail',`${$('pitch').selectedOptions[0].textContent} · ${(Number($('tuning').value)*2**((Number($('pitch').value)-69)/12)).toFixed(1)} Hz`); }
+  const flightScore=()=>C.flightScore($('song').value,$('section').value,level(),Number($('pitch').value));
+  function pitchDisplay() {
+    if(mode!=='sustain')return;
+    const score=flightScore();
+    text('run-detail',`${score.notes.length} notes · ${Math.round(score.duration)}s`);
+    flightScene.resetFlight();
+    flightScene.draw('flight',0,[],.6,null,{score,elapsed:-1.2,index:0,hits:0,idle:true});
+  }
   function rippleAt(position,now) {
     // Resolve the phrase slot at draw time: slots are rebuilt after a response,
     // and their positions can wrap or shift when the viewport changes.
@@ -196,7 +203,8 @@
     try {
       await sound(); if (token !== generation || document.hidden) return;
       run = { phase: 'start', round: 0, score: 0, preview, parts: C.songPhrases($('song').value, $('section').value, level()) }; lock(true); scores();
-      if (preview) { const data = C.arrangement($('song').value, $('section').value); const beat = 60 / tempo(); run.phase = 'preview'; run.end = audio.now + .1 + data.beats * beat; arrange(audio.now + .1, data, beat); text('phase', 'LISTENING'); text('feedback', ''); }
+      if (preview && mode==='sustain') beginFlight(true);
+      else if (preview) { const data = C.arrangement($('song').value, $('section').value); const beat = 60 / tempo(); run.phase = 'preview'; run.end = audio.now + .1 + data.beats * beat; arrange(audio.now + .1, data, beat); text('phase', 'LISTENING'); text('feedback', ''); }
       else if (mode === 'melody') newPhrase();
       else { await startFlight(token); if(token !== generation || !run || run.phase==='over') return; }
       raf = requestAnimationFrame(tick);
@@ -214,28 +222,41 @@
     microphone.source=source;microphone.analyser=analyser;
     analyser.fftSize=2048;source.connect(analyser);
     microphone.data=new Float32Array(analyser.fftSize);
-    run.phase='flight';run.flightStart=audio.now;run.gate=0;run.hold=0;run.hits=0;run.lastFrame=audio.now;run.lastPitch=0;run.cents=null;
-    run.target=Number($('tuning').value)*2**((Number($('pitch').value)-69)/12);
-    text('phase','MIC ON');text('headline',`Hold ${$('pitch').selectedOptions[0].textContent}`);text('instruction',`Hold ${$('pitch').selectedOptions[0].textContent}. Keep the kite centered through each gate.`);text('feedback','Microphone stays on this device.');
-    $('flight-canvas').hidden=false;flightScene.draw('flight',audio.now);
+    beginFlight(false);
+  }
+  function beginFlight(preview){
+    run.phase='flight';run.flightStart=audio.now+1.2;run.flightScore=flightScore();run.gate=0;run.hold=0;run.hits=0;run.lastFrame=audio.now;run.lastPitch=-1;run.cents=null;run.detected=null;
+    // Cues end before microphone scoring starts. The full melody is available
+    // through Listen without opening a microphone or awarding points.
+    for(const note of run.flightScore.notes)audio.note(note.midi,run.flightStart+note.start,preview?(note.end-note.start)*.82:.12,preview?'note':'cue');
+    flightScene.resetFlight();
+    text('phase',preview?'LISTENING':'MIC ON');text('instruction',preview?'Follow the melody through the rings.':'Hear each note. Hold it through its ring.');text('feedback','');
+    flightScene.draw('flight',audio.now,[],.6,null,{score:run.flightScore,elapsed:-1.2,index:0,hits:0,preview});
   }
   function tickFlight(now) {
-    if(!microphone)return;
-    if(now-run.lastPitch>.05){
-      microphone.analyser.getFloatTimeDomainData(microphone.data);
-      const hz=Lab.pitch(microphone.data,audio.ctx.sampleRate);
-      run.cents=hz ? 1200*Math.log2(hz/run.target) : null;run.lastPitch=now;
+    if(!microphone && !run.preview)return;
+    const score=run.flightScore,elapsed=now-run.flightStart,dt=Math.max(0,now-run.lastFrame);run.lastFrame=now;
+    if(dt>.15)run.hold=0;
+    while(run.gate<score.notes.length && elapsed>=score.notes[run.gate].end){
+      const hit=!run.preview && run.hold>=score.hold && now-run.lastPitch<.15;
+      if(hit){run.hits++;run.score+=100;}
+      if(!run.preview){flightScene.flash(now,hit);text('feedback',hit?'Through. +100':'Missed ring.');}
+      run.gate++;run.hold=0;run.cents=null;run.lastPitch=-1;
     }
-    const dt=Math.min(.1,Math.max(0,now-run.lastFrame));run.lastFrame=now;
-    const tolerance={easy:35,medium:25,hard:15}[level()];
-    if(run.cents!==null && Math.abs(run.cents)<=tolerance)run.hold+=dt;else run.hold=0;
-    const elapsed=now-run.flightStart;
-    if(elapsed>=(run.gate+1)*5){
-      const hit=run.hold>=.6;run.gate++;if(hit){run.hits++;run.score+=100;}
-      flightScene.flash(now,hit);text('feedback',hit?'Through. +100':'Missed gate.');run.hold=0;
-      if(run.gate===6){flightScene.draw('flight',now,[],.6,run.cents,{progress:1,hits:run.hits});finish(`${run.hits} / 6 gates · ${run.score} points`);return;}
-    }
-    flightScene.draw('flight',now,[],.6,run.cents,{progress:(elapsed%5)/5,hits:run.hits});
+    const note=score.notes[run.gate],active=note && elapsed>=note.start;
+    if(active && !run.preview && elapsed>=note.start+.24){
+      if(now-run.lastPitch>=.045){
+        microphone.analyser.getFloatTimeDomainData(microphone.data);
+        const hz=Lab.pitch(microphone.data,audio.ctx.sampleRate),target=Number($('tuning').value)*2**((note.midi-69)/12);
+        run.cents=hz?1200*Math.log2(hz/target):null;
+        run.detected=hz?69+12*Math.log2(hz/Number($('tuning').value)):null;run.lastPitch=now;
+      }
+      const tolerance={easy:35,medium:25,hard:15}[level()];
+      if(dt<=.15 && run.cents!==null && Math.abs(run.cents)<=tolerance)run.hold+=dt;else run.hold=0;
+    }else{run.cents=null;run.hold=0;}
+    text('run-detail',active?`${note.label} · ${run.gate+1} / ${score.notes.length}`:elapsed<0?'Ready…':'Breathe');
+    flightScene.draw('flight',now,[],.6,run.cents,{score,elapsed,index:run.gate,hits:run.hits,preview:run.preview,detected:run.detected});
+    if(elapsed>=score.duration)finish(run.preview?'Melody complete.':`${run.hits} / ${score.notes.length} rings · ${run.score} points`);
   }
   $('upload').addEventListener('change',async()=>{
     const file=$('upload').files?.[0];if(!file)return;

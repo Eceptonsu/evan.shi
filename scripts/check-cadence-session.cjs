@@ -7,7 +7,7 @@ global.CadenceLab=require('../assets/js/cadence-lab.js');
 const Score=require('../assets/js/crosswind-score.js');
 const dispatched=[];
 const Lab = require('../assets/js/cadence-lab.js');
-let now = 1, counter = 0;
+let now = 1, counter = 0, micHz = 440;
 const frames = new Map(), storage = new Map(), voices = [];
 class Element {
   constructor() { this.children = []; this.dataset = {}; this.handlers = {}; this.style = {}; this.parentElement = {}; this.hidden = false; this.disabled = false; this.value = ''; const classes = new Set(); this.classList = { add: (c) => classes.add(c), remove: (c) => classes.delete(c), toggle: (c, on) => on ? classes.add(c) : classes.delete(c) }; }
@@ -23,8 +23,8 @@ class Element {
 }
 const html = fs.readFileSync('_projects/cadence.html', 'utf8');
 const elements = Object.fromEntries([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => [m[1], new Element()]));
-for (const [id, value] of Object.entries({ difficulty:'easy', song:'joy', section:'0', tuning:'440', pitch:'69', volume:'35' })) elements[id].value = value;
-elements.pitch.selectedOptions = [{ textContent: 'A4' }];
+for (const [id, value] of Object.entries({ difficulty:'easy', song:'joy', section:'0', tuning:'440', pitch:'60', volume:'35' })) elements[id].value = value;
+elements.pitch.selectedOptions = [{ textContent: 'C major' }];
 const modes = ['melody','sustain','crosswind'].map((mode) => { const el = new Element(); el.dataset.mode = mode; return el; });
 const idle = new Element();
 const document = { hidden:false, getElementById: (id) => elements[id], createElement: () => new Element(), dispatchEvent(e){dispatched.push(e);}, querySelector: () => idle, querySelectorAll: (selector) => selector === '.key' ? elements.keyboard.children : modes, addEventListener() {} };
@@ -34,7 +34,7 @@ class AudioContext {
   resume() { return Promise.resolve(); }
   get sampleRate() { return 48000; }
   createMediaStreamSource() { return { connect(){},disconnect(){} }; }
-  createAnalyser() { return { fftSize:2048,disconnect(){},getFloatTimeDomainData(data){for(let i=0;i<data.length;i++)data[i]=.2*Math.sin(i*2*Math.PI*440/48000);} }; }
+  createAnalyser() { return { fftSize:2048,disconnect(){},getFloatTimeDomainData(data){for(let i=0;i<data.length;i++)data[i]=.2*Math.sin(i*2*Math.PI*micHz/48000);} }; }
   decodeAudioData() { const samples=new Float32Array(48000*8); for(let i=0;i<samples.length;i++)samples[i]=i%24000<200?.3*Math.sin(i):0; return Promise.resolve({duration:8,sampleRate:48000,length:samples.length,numberOfChannels:1,getChannelData:()=>samples}); }
   createBufferSource() { return {connect(){},disconnect(){},start(at,offset,duration){voices.push({at,offset,duration,uploaded:true});},stop(){}}; }
   getOutputTimestamp() { return { contextTime:now, performanceTime:now * 1000 }; }
@@ -42,7 +42,7 @@ class AudioContext {
   createOscillator() { const voice = { connect() {}, disconnect() {}, start(at) { voice.at = at; voices.push(voice); }, stop(at) { voice.end = at; }, frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} } }; return voice; }
 }
 const navigator={mediaDevices:{getUserMedia:async()=>{throw Error('denied');}}};
-vm.runInNewContext(fs.readFileSync('assets/js/cadence.js', 'utf8'), { CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail;}},window: { CadenceArt:{Scene:class {draw(){} flash(){} clear(){}}}, CrosswindScore:Score, CadenceCore:C, CadenceLab:{ ...Lab, Scene:class { draw(){} flash(){} } }, AudioContext, addEventListener() {} }, navigator, document, performance: { now: () => now * 1000 }, localStorage: { getItem: (key) => storage.get(key), setItem: (key,value) => storage.set(key,value) }, requestAnimationFrame: (fn) => { frames.set(++counter, fn); return counter; }, cancelAnimationFrame: (id) => frames.delete(id), setTimeout() {} });
+vm.runInNewContext(fs.readFileSync('assets/js/cadence.js', 'utf8'), { CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail;}},window: { CadenceArt:{Scene:class {draw(){} flash(){} clear(){} resetFlight(){}}}, CrosswindScore:Score, CadenceCore:C, CadenceLab:{ ...Lab, Scene:class { draw(){} flash(){} } }, AudioContext, addEventListener() {} }, navigator, document, performance: { now: () => now * 1000 }, localStorage: { getItem: (key) => storage.get(key), setItem: (key,value) => storage.set(key,value) }, requestAnimationFrame: (fn) => { frames.set(++counter, fn); return counter; }, cancelAnimationFrame: (id) => frames.delete(id), setTimeout() {} });
 function advance(seconds) { now += seconds; const pending = [...frames.values()]; frames.clear(); pending.forEach((fn) => fn()); }
 (async () => {
   assert.equal(elements.crosswind.hidden,false,'Crosswind opens inside Cadence');
@@ -74,7 +74,8 @@ function advance(seconds) { now += seconds; const pending = [...frames.values()]
   await modes[1].fire('click');
   assert(!html.includes('tune-mode'),'Sustain has no mode switch');
   assert.equal(elements['flight-canvas'].hidden,false,'Sustain opens directly into flight');
-  assert.equal(elements['volume-control'].hidden,true,'Flight has no drone volume control');
+  assert.equal(elements['song-picker'].hidden,false,'Flight offers real melodies');
+  assert.equal(elements['volume-control'].hidden,false,'Melody guide volume is adjustable');
   assert.equal(elements.start.textContent,'Start microphone');
   await elements.start.fire('click');
   assert.match(elements.feedback.textContent,/permission/, 'Unavailable microphone produces a recoverable error');
@@ -85,10 +86,36 @@ function advance(seconds) { now += seconds; const pending = [...frames.values()]
   pendingMic({getTracks:()=>[{stop:()=>stopped++}]}); await new Promise(setImmediate);
   assert.equal(stopped,1,'A permission grant after Stop releases the microphone');
   navigator.mediaDevices.getUserMedia=async()=>({getTracks:()=>[{stop:()=>stopped++}]});
-  await elements.start.fire('click');
-  for(let i=0;i<610;i++)advance(.05);
-  assert.match(elements.feedback.textContent,/6 \/ 6 gates · 600 points/,'Actual pitch controls gate scores');
-  assert.equal(stopped,2,'Finishing Flight releases the microphone');
+  const previewVoices=voices.length;
+  await elements.preview.fire('click');
+  assert.equal(elements.phase.textContent,'LISTENING');
+  assert.equal(voices.length-previewVoices,8,'The flight preview plays every melody note');
+  advance(18);assert.equal(elements.feedback.textContent,'Melody complete.');
+  assert.equal(stopped,1,'Listening never opens a microphone');
+  async function fly(input){
+    const score=C.flightScore(elements.song.value,elements.section.value,elements.difficulty.value,Number(elements.pitch.value));
+    await elements.start.fire('click');const begun=now+1.2;
+    for(let i=0;i<Math.ceil((score.duration+1.5)/.025);i++){
+      const t=now+.025-begun,note=score.notes.find(n=>t>=n.start && t<n.end);
+      micHz=input(note,t);advance(.025);
+    }
+    return score;
+  }
+  const frequency=n=>n?Number(elements.tuning.value)*2**((n.midi-69)/12):0;
+  for(const difficulty of ['easy','medium','hard']){
+    elements.difficulty.value=difficulty;elements.pitch.value='62';elements.tuning.value='442';
+    await elements.difficulty.fire('change');
+    const score=await fly(frequency);
+    assert.equal(elements.feedback.textContent,`${score.notes.length} / ${score.notes.length} rings · ${score.notes.length*100} points`,'Changing microphone pitches follow the transposed melody at each difficulty');
+  }
+  await fly(()=>440);
+  assert.match(elements.feedback.textContent,/^0 \/ 8 rings/,'A fixed A cannot pass a changing melody');
+  await fly((note,t)=>note && t<note.start+.24?frequency(note):0);
+  assert.match(elements.feedback.textContent,/^0 \/ 8 rings/,'Guide-cue audio cannot award a ring');
+  elements.song.value='saints';elements.section.value='0';await elements.song.fire('change');
+  await fly(frequency);assert.match(elements.feedback.textContent,/^4 \/ 4 rings/,'Rests do not create extra targets');
+  assert.equal(stopped,7,'Every completed flight releases the microphone');
+  elements.song.value='jacques';await elements.song.fire('change');
   elements.upload.files=[{name:'My tune.wav',size:1024,arrayBuffer:async()=>new ArrayBuffer(8)}];
   await elements.upload.fire('change');
   assert.equal(elements.crosswind.hidden,false,'Uploads open Crosswind');

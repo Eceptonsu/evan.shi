@@ -1,10 +1,11 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const html=fs.readFileSync(require('path').join(__dirname,'../_projects/cadence.html'),'utf8');
 let source=fs.readFileSync(require('path').join(__dirname,'../assets/js/crosswind.js'),'utf8');new vm.Script(source);
-source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={worldPoint,advanceTravel,time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},setSpeed(v){airspeed=v;},snapshot(){return {forward,airspeed,hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
+source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={birdPosition,worldPoint,advanceTravel,time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},setSpeed(v){airspeed=v;},snapshot(){return {forward,airspeed,hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
+let rotation=0,rotations=[],strokes=[],pen=[];
 let now=0,frames=[],width=736,height=440,arcs=[],petals=[],resize,draws=0;const listeners={};
 function element(name){return {name,style:{},dataset:{},textContent:'',disabled:false,attrs:{},events:{},addEventListener(k,fn){this.events[k]=fn;},setAttribute(k,v){this.attrs[k]=v;},remove(){},setPointerCapture(){},getBoundingClientRect(){return {width,height};}};}
-const context=new Proxy({}, {get(o,k){if(k==='createLinearGradient')return ()=>({addColorStop(){}});return (...args)=>{args.forEach(a=>{if(typeof a==='number')assert(Number.isFinite(a),k+' finite argument');});if(k==='arc')arcs.push(args);draws++;};},set(o,k,v){o[k]=v;return true;}});
+const context=new Proxy({}, {get(o,k){if(k==='createLinearGradient')return ()=>({addColorStop(){}});return (...args)=>{args.forEach(a=>{if(typeof a==='number')assert(Number.isFinite(a),k+' finite argument');});if(k==='save')rotations.push(rotation);if(k==='restore')rotation=rotations.pop()||0;if(k==='rotate')rotation+=args[0];if(k==='moveTo')pen=args;if(k==='stroke')strokes.push({pen,rotation});if(k==='arc')arcs.push(args);draws++;};},set(o,k,v){o[k]=v;return true;}});
 const selectors=['canvas','.cw-status','.cw-count','.cw-start','.cw-demo','.cw-sound','.cw-progress','.cw-phrase','.cw-track','.cw-upload','.cw-original','.cw-settings','.cw-fields','.cw-bpm','.cw-mapping','.cw-offset','.cw-instruction'];
 const elements=Object.fromEntries(selectors.map(s=>[s,element(s)]));const bar=element('span');elements['.cw-progress'].querySelector=()=>bar;elements.canvas.getContext=()=>context;
 const hands=['a','w','s','d'].map(key=>{const e=element('hand');e.dataset.key=key;e.label=element('span');e.querySelector=()=>e.label;return e;});
@@ -55,6 +56,18 @@ for(const w of [320,440,441,736]){
   assert(api.catchPoint('a')[0]<api.catchPoint('w')[0] && api.catchPoint('d')[0]>api.catchPoint('w')[0]);
   assert(api.catchPoint('w')[1]<api.catchPoint('a')[1] && api.catchPoint('s')[1]>api.catchPoint('a')[1]);
 }
+// Birds cross the viewport outside the landscape's camera transform.
+for(const bank of [-1,1]){
+  api.setPose(bank,1);strokes=[];api.draw(3);
+  for(let i=0;i<5;i++){
+    const bird=api.birdPosition(i,3),stroke=strokes.find(s=>Math.abs(s.pen[0]-(bird.x-5))<1e-8 && Math.abs(s.pen[1]-(bird.y-bird.wing))<1e-8);
+    assert(stroke && stroke.rotation===0,'Bird strokes are independent of camera rotation');
+  }
+}
+const bird=api.birdPosition(0,3);api.setPose(-1,-1);api.setSpeed(1.45);
+assert.deepEqual(api.birdPosition(0,3),bird,'Steering and speed cannot move a bird');
+assert(Math.abs(api.birdPosition(0,4).x-bird.x-18)<1e-8,'Birds fly across the viewport on their own clock');
+api.setPose(0,0);api.setSpeed(1);
 assert(!html.includes('laneLayout'));assert(!html.includes("fillText('HIT'"));
 // Forward travel must be present without banking, and respond smoothly to pitch.
 start();advance(1);assert(api.snapshot().forward>2 && api.snapshot().forward<2.2);assert.equal(api.snapshot().bank,0);

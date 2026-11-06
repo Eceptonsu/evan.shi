@@ -175,20 +175,25 @@
       }
       ctx.lineCap='round';path(wisp,colors.paper,fade*.36,Math.max(1,18/(z+2)));
     }
-    // Distant birds are charcoal, much smaller than the rose musical petals.
-    for(let i=0;i<5;i++){
-      const drift=reduced?0:forward*.012;
-      const x=width*(.16+i*.034)+Math.sin(drift+i)*14;
-      const y=height*(.24+i*.012)+Math.cos(drift+i)*5;
-      const wing=3+Math.sin((reduced?0:elapsed*2)+i)*1.1;
-      path([[x-5,y-wing],[x,y],[x+5,y-wing*.7]],colors.ink,.23,.7);
-    }
     for(let i=0;i<18;i++){
       const z=((i*1.731-forward)%22+22)%22;
       const angle=i*2.39996,x=Math.cos(angle)*2.4,y=Math.sin(angle)*1.6;
       const fade=Math.min(1,z/1.2)*Math.min(1,(22-z)/4);
       const a=worldPoint(x,y,z+.7),b=worldPoint(x,y,z);
       path([a,[(a[0]+b[0])/2+3,(a[1]+b[1])/2],b],colors.line,fade*.09,.45+1/(z+2));
+    }
+  }
+  function birdPosition(i,t){
+    const clock=reduced?0:t;
+    return {x:((width*(.16+i*.034)+clock*18+30)%(width+60))-30,
+      y:height*(.24+i*.012)+Math.sin(clock*.45+i)*5,
+      wing:3+Math.sin(clock*4+i)*1.1};
+  }
+  function drawBirds(t){
+    // Screen-space flight: neither roll, heading nor airspeed steers the flock.
+    for(let i=0;i<5;i++){
+      const {x,y,wing}=birdPosition(i,t);
+      path([[x-5,y-wing],[x,y],[x+5,y-wing*.7]],colors.ink,.23,.7);
     }
   }
   function curvePoint(points,t){
@@ -375,6 +380,7 @@
     ctx.globalAlpha=1;
     drawPassage();
     ctx.restore();
+    drawBirds(motion);
     const {cx,cy,scale,tilt}=flightPose();
     art.kite(ctx,{cx,cy,scale,tilt},clothFlex(),colors,{lean:reduced?bank*.2:bank,lift:reduced?lift*.2:lift});
     // A fine, slightly irregular weave gives the otherwise sparse scene material.
