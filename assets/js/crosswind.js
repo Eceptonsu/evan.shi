@@ -108,8 +108,8 @@
     else{resetFlightView();count.textContent=tempoLabel();status.textContent='Ready to fly';}
     if(event.detail.mode==='crosswind')resize();
   });
-  // Timing is an invariant screen-space frame. Steering changes the cloth and
-  // scenery, never the distance to a contact or a petal's velocity.
+  // Timing is an invariant screen-space frame. Wind adds only lateral drift;
+  // steering cannot change a petal's approach or its arrival time.
   function flightPose(){
     const scale=Math.min((width-132)/302,1.08),cx=width*.5,cy=height*.61;
     return {cx,cy,scale,tilt:0,project:(x,y)=>[cx+x*scale,cy+y*scale]};
@@ -131,7 +131,25 @@
   }
   function gustPosition(note,t,key=note.keys[0],edge=note.time){
     const target=catchPoint(key),v=approachVector(key),remaining=(edge-t)/approach;
-    return {x:target[0]+v[0]*remaining,y:target[1]+v[1]*remaining,target};
+    const length=Math.hypot(...v),wind=petalWind(note,t,key,edge);
+    // A transverse sway keeps progress toward the wing uniform. It settles
+    // completely for the final 450 ms, leaving a calm, readable contact.
+    const drift=reduced?0:Math.min(12,width*.023,length*.12)*wind.settle*Math.sin(wind.phase);
+    return {x:target[0]+v[0]*remaining-v[1]/length*drift,
+      y:target[1]+v[1]*remaining+v[0]/length*drift,target};
+  }
+  function petalWind(note,t,key,edge=note.time){
+    const u=Math.max(0,Math.min(1,(edge-t-.45)/.7));
+    return {settle:u*u*(3-2*u),phase:(1-(edge-t)/approach)*Math.PI*2.6+note.time*1.71+key.charCodeAt(0)*.37};
+  }
+  function petalPose(note,t,key,edge=note.time){
+    const v=approachVector(key),base=Math.atan2(-v[1],-v[0]);
+    if(reduced)return {angle:base,fold:1,curl:0};
+    const wind=petalWind(note,t,key,edge),weight=.12+.88*wind.settle;
+    const before=gustPosition(note,t-.01,key,edge),after=gustPosition(note,t+.01,key,edge);
+    return {angle:Math.atan2(after.y-before.y,after.x-before.x)+Math.sin(wind.phase*1.3)*.22*weight,
+      fold:1-(.5+.5*Math.sin(wind.phase*1.6))*.42*weight,
+      curl:Math.cos(wind.phase*.9)*2.6*weight};
   }
   function worldView(){return {roll:bank*(reduced?0:.045),pan:reduced?0:travelX,pitch:reduced?0:altitude+lift*32,zoom:reduced?1:1-lift*.055};}
   function advanceTravel(dt){
@@ -184,16 +202,22 @@
     }
   }
   function birdPosition(i,t){
-    const clock=reduced?0:t;
-    return {x:((width*(.16+i*.034)+clock*18+30)%(width+60))-30,
-      y:height*(.24+i*.012)+Math.sin(clock*.45+i)*5,
-      wing:3+Math.sin(clock*4+i)*1.1};
+    const clock=reduced?0:t,follow=clock-i*.22;
+    const glide=.25+.75*(.5+.5*Math.sin(clock*.63+i*.9))**2;
+    return {x:((width*(.16+i*.034)+clock*18+Math.sin(follow*.55)*10+Math.sin(clock*.93+i)*3+30)%(width+60))-30,
+      y:height*(.24+i*.012)+Math.sin(follow*.7)*height*.026+Math.sin(clock*1.13+i*1.7)*3.5,
+      wing:1.5+Math.sin(clock*(4.6+i*.19)+i*.9)*3.2*glide,
+      bank:Math.cos(follow*.7)*1.2+Math.cos(clock*1.13+i*1.7)*.6};
   }
   function drawBirds(t){
     // Screen-space flight: neither roll, heading nor airspeed steers the flock.
     for(let i=0;i<5;i++){
-      const {x,y,wing}=birdPosition(i,t);
-      path([[x-5,y-wing],[x,y],[x+5,y-wing*.7]],colors.ink,.23,.7);
+      const {x,y,wing,bank}=birdPosition(i,t);
+      ctx.save();ctx.strokeStyle=colors.ink;ctx.globalAlpha=.28;ctx.lineWidth=.8;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(x-5,y-wing);
+      ctx.quadraticCurveTo(x-2.3,y-wing*.7-1,x,y);
+      ctx.quadraticCurveTo(x+2.5,y-wing*.65-1,x+5,y-wing*.8+bank);ctx.stroke();
+      ctx.restore();
     }
   }
   function curvePoint(points,t){
@@ -394,14 +418,13 @@
     // point on the sail; the native button uses that exact same coordinate.
     const activeKeys=new Set(visible.flatMap(n=>n.keys));
     activeKeys.forEach(key=>{
-      const trace=Array.from({length:25},(_,i)=>{const p=gustPosition({keys:[key],time:t+approach*(1-i/24)},t);return [p.x,p.y];});
+      const note=visible.find(n=>n.keys.includes(key)),edge=note.armed?note.end:note.time;
+      const trace=Array.from({length:33},(_,i)=>{const p=gustPosition(note,edge-approach*(1-i/32),key,edge);return [p.x,p.y];});
       path(trace,colors.line,.12,.8);
     });
     function petal(point,key,n,open=false){
-      const v=approachVector(key);
-      const flutter=reduced?0:Math.sin(t*3+n.time)*.07;
-      const angle=Math.atan2(-v[1],-v[0])+flutter;
-      art.petal(ctx,point[0],point[1],angle,open,colors.sail,colors.paper);
+      const pose=petalPose(n,t,key,open?n.end:n.time);
+      art.petal(ctx,point[0],point[1],pose.angle,open,colors.sail,colors.paper,pose);
     }
     visible.forEach(n=>{
       const points=[];

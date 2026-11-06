@@ -116,12 +116,13 @@
     const mist=g.createLinearGradient(0,h*.3,0,h);mist.addColorStop(0,'rgba(244,239,234,0)');mist.addColorStop(1,palette.paper);
     g.fillStyle=mist;g.fillRect(0,0,w,h);g.restore();
   }
-  function petal(g,x,y,angle,open,ink,paper){
-    g.save();g.translate(x,y);g.rotate(angle);
+  function petal(g,x,y,angle,open,ink,paper,motion={}){
+    g.save();g.translate(x,y);g.rotate(angle);g.scale(1,motion.fold??1);
+    const curl=motion.curl||0;
     // The point at (0,0) is the timing anchor. Flutter changes the body only.
-    g.beginPath();g.moveTo(0,0);g.bezierCurveTo(-9,-9,-24,-11,-31,-2);g.bezierCurveTo(-26,11,-9,9,0,0);g.closePath();
+    g.beginPath();g.moveTo(0,0);g.bezierCurveTo(-9,-9+curl,-24,-11+curl,-31,-2+curl);g.bezierCurveTo(-26,11+curl,-9,9+curl,0,0);g.closePath();
     g.fillStyle=open?paper:ink;g.fill();g.strokeStyle=ink;g.lineWidth=open?1.8:.7;g.stroke();
-    g.beginPath();g.moveTo(-27,-1);g.quadraticCurveTo(-12,4,-2,0);g.strokeStyle=open?ink:paper;g.globalAlpha=open?.5:.78;g.lineWidth=1;g.stroke();
+    g.beginPath();g.moveTo(-27,-1+curl);g.quadraticCurveTo(-12,4+curl,-2,0);g.strokeStyle=open?ink:paper;g.globalAlpha=open?.5:.78;g.lineWidth=1;g.stroke();
     if(!open){g.beginPath();g.moveTo(-19,-5);g.quadraticCurveTo(-11,-3,-6,-1);g.globalAlpha=.3;g.lineWidth=.7;g.stroke();}
     g.restore();
   }

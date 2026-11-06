@@ -1,7 +1,7 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const html=fs.readFileSync(require('path').join(__dirname,'../_projects/cadence.html'),'utf8');
 let source=fs.readFileSync(require('path').join(__dirname,'../assets/js/crosswind.js'),'utf8');new vm.Script(source);
-source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={birdPosition,worldPoint,advanceTravel,time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},setSpeed(v){airspeed=v;},snapshot(){return {forward,airspeed,hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
+source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={petalPose,birdPosition,worldPoint,advanceTravel,time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},setSpeed(v){airspeed=v;},snapshot(){return {forward,airspeed,hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
 let rotation=0,rotations=[],strokes=[],pen=[];
 let now=0,frames=[],width=736,height=440,arcs=[],petals=[],resize,draws=0;const listeners={};
 function element(name){return {name,style:{},dataset:{},textContent:'',disabled:false,attrs:{},events:{},addEventListener(k,fn){this.events[k]=fn;},setAttribute(k,v){this.attrs[k]=v;},remove(){},setPointerCapture(){},getBoundingClientRect(){return {width,height};}};}
@@ -46,7 +46,11 @@ for(const w of [320,440,441,736]){
     assert(Math.abs(head.x-target[0])<1e-9);assert(Math.abs(head.y-target[1])<1e-9);assert(Math.abs(tail.x-target[0])<1e-9);assert(Math.abs(tail.y-target[1])<1e-9);
     for(let t=1;t<3.1;t+=.1){
       const p=api.gustPosition(note,t),q=api.gustPosition(note,t+.1);
-      assert(Math.abs(q.x-p.x+v[0]*.1/2)<1e-8 && Math.abs(q.y-p.y+v[1]*.1/2)<1e-8,'petals move at a constant speed through contact');
+      const length=Math.hypot(...v),along=((q.x-p.x)*v[0]+(q.y-p.y)*v[1])/length;
+      assert(Math.abs(along+length*.1/2)<1e-8,'forward timing stays uniform while petals drift sideways');
+      const offset=((p.x-target[0])*-v[1]+(p.y-target[1])*v[0])/length;
+      assert(Math.abs(offset)<=12.00001,'wind drift stays subtle');
+      if(t>=2.55)assert(Math.abs(offset)<1e-8,'the final 450 ms stays straight and readable');
     }
     for(const other of ['a','w','s','d'].slice(i+1)){const p=api.catchPoint(other);assert(Math.abs(p[0]-target[0])>=44 || Math.abs(p[1]-target[1])>=44,'44px touch areas must not overlap');}
   });
@@ -66,7 +70,15 @@ for(const bank of [-1,1]){
 }
 const bird=api.birdPosition(0,3);api.setPose(-1,-1);api.setSpeed(1.45);
 assert.deepEqual(api.birdPosition(0,3),bird,'Steering and speed cannot move a bird');
-assert(Math.abs(api.birdPosition(0,4).x-bird.x-18)<1e-8,'Birds fly across the viewport on their own clock');
+const flock=Array.from({length:120},(_,i)=>api.birdPosition(0,i/10));
+assert(Math.max(...flock.map(b=>b.y))-Math.min(...flock.map(b=>b.y))>18,'Birds visibly rise and dip');
+assert(Math.max(...flock.map(b=>b.y))-Math.min(...flock.map(b=>b.y))<height*.08,'Vertical flight stays subtle');
+assert(flock.some((b,i)=>i && b.y>flock[i-1].y) && flock.some((b,i)=>i && b.y<flock[i-1].y),'The flock climbs and descends');
+assert(Math.max(...flock.map(b=>b.wing))-Math.min(...flock.map(b=>b.wing))>3,'Wingbeats alternate with gliding');
+const poses=Array.from({length:80},(_,i)=>api.petalPose({time:3},1+i/40,'a'));
+assert(Math.max(...poses.map(p=>p.fold))-Math.min(...poses.map(p=>p.fold))>.25,'Petal bodies roll as they fall');
+assert(poses.every(p=>p.fold>=.58 && p.fold<=1),'Petals remain visible through each flutter');
+assert(Math.max(...poses.map(p=>p.angle))-Math.min(...poses.map(p=>p.angle))>.35,'Petals turn with the wind');
 api.setPose(0,0);api.setSpeed(1);
 assert(!html.includes('laneLayout'));assert(!html.includes("fillText('HIT'"));
 // Forward travel must be present without banking, and respond smoothly to pitch.
@@ -121,6 +133,8 @@ click('.cw-sound');assert.equal(elements['.cw-sound'].textContent,'Sound off');a
 sandbox.matchMedia=()=>({matches:true,addEventListener(){}});vm.runInNewContext(source,sandbox);
 const quiet=sandbox.testStudy;document.dispatchEvent({type:"cadence:mode",detail:{mode:"crosswind",level:"hard"}});quiet.setPose(-1,1);
 assert(Math.abs(quiet.flightPose().tilt)<.05);assert(Math.abs(quiet.worldView().roll)<.02);assert.equal(quiet.worldView().pan,0);assert.equal(quiet.worldView().pitch,0);assert.equal(quiet.worldView().zoom,1);
+assert.deepEqual(quiet.birdPosition(0,0),quiet.birdPosition(0,10),'Reduced motion keeps birds still');
+assert.deepEqual(quiet.petalPose({time:3},1,'a'),quiet.petalPose({time:3},2,'a'),'Reduced motion disables petal flutter');
 quiet.advanceTravel(2);assert.equal(quiet.snapshot().forward,0,'Reduced motion suppresses forward travel');assert.equal(quiet.snapshot().airspeed,1);
 async function verifyRecording() {
   document.dispatchEvent({type:'cadence:mode',detail:{mode:'crosswind',level:'easy'}});
@@ -190,4 +204,4 @@ async function verifyRecording() {
   assert.equal(elements['.cw-start'].textContent,'Play');
   assert.equal(elements['.cw-phrase'].textContent,'Hard · holds, chords & releases');
 }
-verifyRecording().then(()=>console.log('Crosswind checks passed: edge alignment, gentler bank and horizon limits, reduced motion, 20/20 demo, keyboard and touch scoring, custom recording playback and cleanup, and original score restoration.')).catch(error=>{console.error(error);process.exitCode=1;});
+verifyRecording().then(()=>console.log('Crosswind checks passed: flutter, independent bird flight, stable arrival timing, edge alignment, reduced motion, 20/20 demo, keyboard and touch scoring, custom recording playback and cleanup, and original score restoration.')).catch(error=>{console.error(error);process.exitCode=1;});
