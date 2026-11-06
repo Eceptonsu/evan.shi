@@ -2,10 +2,10 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const html=fs.readFileSync(require('path').join(__dirname,'../_projects/cadence.html'),'utf8');
 let source=fs.readFileSync(require('path').join(__dirname,'../assets/js/crosswind.js'),'utf8');new vm.Script(source);
 source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={resultAt,drawResult,windGuide,petalPose,birdPosition,worldPoint,advanceTravel,time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},setSpeed(v){airspeed=v;},snapshot(){return {forward,airspeed,hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
-let rotation=0,rotations=[],strokes=[],pen=[];
+let rotation=0,rotations=[],strokes=[],pen=[],captureGeometry=false,geometry=[];
 let now=0,frames=[],width=736,height=440,arcs=[],petals=[],resize,draws=0;const listeners={};
 function element(name){return {name,style:{},dataset:{},textContent:'',disabled:false,attrs:{},events:{},addEventListener(k,fn){this.events[k]=fn;},setAttribute(k,v){this.attrs[k]=v;},remove(){},setPointerCapture(){},getBoundingClientRect(){return {width,height};}};}
-const context=new Proxy({}, {get(o,k){if(k==='createLinearGradient')return ()=>({addColorStop(){}});return (...args)=>{args.forEach(a=>{if(typeof a==='number')assert(Number.isFinite(a),k+' finite argument');});if(k==='save')rotations.push(rotation);if(k==='restore')rotation=rotations.pop()||0;if(k==='rotate')rotation+=args[0];if(k==='moveTo')pen=args;if(k==='stroke')strokes.push({pen,rotation});if(k==='arc')arcs.push(args);draws++;};},set(o,k,v){o[k]=v;return true;}});
+const context=new Proxy({}, {get(o,k){if(k==='createLinearGradient')return ()=>({addColorStop(){}});return (...args)=>{args.forEach(a=>{if(typeof a==='number')assert(Number.isFinite(a),k+' finite argument');});if(captureGeometry && ['translate','rotate','scale','moveTo','lineTo','bezierCurveTo','quadraticCurveTo','arc'].includes(k))geometry.push([k,...args]);if(k==='save')rotations.push(rotation);if(k==='restore')rotation=rotations.pop()||0;if(k==='rotate')rotation+=args[0];if(k==='moveTo')pen=args;if(k==='stroke')strokes.push({pen,rotation});if(k==='arc')arcs.push(args);draws++;};},set(o,k,v){o[k]=v;return true;}});
 const selectors=['canvas','.cw-status','.cw-count','.cw-start','.cw-demo','.cw-sound','.cw-progress','.cw-phrase','.cw-track','.cw-upload','.cw-original','.cw-settings','.cw-fields','.cw-bpm','.cw-mapping','.cw-offset','.cw-instruction'];
 const elements=Object.fromEntries(selectors.map(s=>[s,element(s)]));const bar=element('span');elements['.cw-progress'].querySelector=()=>bar;elements.canvas.getContext=()=>context;
 const hands=['a','w','s','d'].map(key=>{const e=element('hand');e.dataset.key=key;e.label=element('span');e.querySelector=()=>e.label;return e;});
@@ -137,8 +137,8 @@ start();at(2.7);assert.equal(api.resultAt('a',2.7).kind,'miss','An untouched not
 start();at(1);tap('d');assert.equal(api.resultAt('d',1).kind,'miss','Wrong-time presses get feedback at the pressed edge');
 start();at(15);tap('a');at(15.2);assert.equal(api.resultAt('a',15.2).kind,'miss');assert.equal(api.resultAt('w',15.2).kind,'miss','Incomplete chords mark both required edges');
 start();assert.equal(api.resultAt('a',0),null,'A new flight clears old results');
-arcs=[];api.drawResult('a',{kind:'hit',age:.25,alpha:.8});assert(arcs.filter(a=>Math.abs(a[4]-a[3]-Math.PI*2)<1e-8).length>=3,'Success draws complete blooming rings');
-arcs=[];api.drawResult('a',{kind:'miss',age:.25,alpha:.8});assert.equal(arcs.filter(a=>a[4]-a[3]<Math.PI).length,2,'Failure draws two broken arcs');
+captureGeometry=true;geometry=[];arcs=[];api.drawResult('a',{kind:'hit',age:.25,alpha:.8});const successShape=JSON.stringify(geometry);assert.equal(arcs.length,0,'Success is painted pigment, without ring or badge geometry');
+geometry=[];arcs=[];api.drawResult('a',{kind:'miss',age:.25,alpha:.8});assert.equal(arcs.length,0,'Misses have no ring or badge geometry');assert.notEqual(JSON.stringify(geometry),successShape,'Success and failure remain distinct in shape');captureGeometry=false;
 listeners.blur();assert.equal(api.resultAt('a',0),null,'Stopping clears effects');
 // Chords can be played with two fingers, without keyboard simulation.
 start();at(15);hands[0].events.pointerdown({preventDefault(){},pointerId:7});hands[1].events.pointerdown({preventDefault(){},pointerId:8});assert(api.snapshot().notes[8].hit);hands[0].events.pointerup({pointerId:7});hands[1].events.pointerup({pointerId:8});
@@ -163,8 +163,8 @@ const quiet=sandbox.testStudy;document.dispatchEvent({type:"cadence:mode",detail
 assert(Math.abs(quiet.flightPose().tilt)<.05);assert(Math.abs(quiet.worldView().roll)<.02);assert.equal(quiet.worldView().pan,0);assert.equal(quiet.worldView().pitch,0);assert.equal(quiet.worldView().zoom,1);
 assert.deepEqual(quiet.birdPosition(0,0),quiet.birdPosition(0,10),'Reduced motion keeps birds still');
 assert.deepEqual(quiet.petalPose({time:3},1,'a'),quiet.petalPose({time:3},2,'a'),'Reduced motion disables petal flutter');
-arcs=[];quiet.drawResult('a',{kind:'hit',age:.1,alpha:.9});const stillRadii=arcs.map(a=>a[2]);
-arcs=[];quiet.drawResult('a',{kind:'hit',age:.7,alpha:.4});assert.deepEqual(arcs.map(a=>a[2]),stillRadii,'Reduced motion keeps the outcome mark without expansion');
+captureGeometry=true;geometry=[];quiet.drawResult('a',{kind:'hit',age:.1,alpha:.9});const stillPaint=JSON.stringify(geometry);
+geometry=[];quiet.drawResult('a',{kind:'hit',age:.7,alpha:.4});assert.equal(JSON.stringify(geometry),stillPaint,'Reduced motion fades the pigment without moving it');captureGeometry=false;
 quiet.advanceTravel(2);assert.equal(quiet.snapshot().forward,0,'Reduced motion suppresses forward travel');assert.equal(quiet.snapshot().airspeed,1);
 async function verifyRecording() {
   document.dispatchEvent({type:'cadence:mode',detail:{mode:'crosswind',level:'easy'}});

@@ -472,54 +472,60 @@
       const result=resultAt(key,t);
       const active=held[key]!==null || running && notes.some(n=>!n.done && n.keys.includes(key) && Math.abs((n.armed?n.end:n.time)-t)<windowSize),edge=edgeTrace(key).map(p=>flightPose().project(...p));
       ctx.save();ctx.lineCap='round';
-      path(edge,result?.kind==='miss'?colors.ink:active || result?colors.sail:colors.ink,active || result?1:.6,result?5:active?4:1.5);ctx.restore();
+      path(edge,active?colors.sail:colors.ink,active?.9:.6,active?3:1.5);ctx.restore();
       if(result)drawResult(key,result);
     });
   }
   function drawResult(key,{kind,age,alpha}){
-    const [x,y]=catchPoint(key),hit=kind==='hit',hold=kind==='hold';
-    const spread=reduced?0:1-(1-age)**3,color=kind==='miss'?colors.ink:colors.sail;
-    ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=color;
-    if(hit){
-      // A wash of rose, two clear rings, and small silk flecks open from the catch.
-      const radius=18+spread*34;
-      ctx.fillStyle=colors['sail-light'];ctx.globalAlpha=alpha*.3;
-      ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle=color;ctx.globalAlpha=alpha*.9;ctx.lineWidth=2.5;
-      ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.stroke();
-      if(!reduced){
-        ctx.globalAlpha=alpha*.5;ctx.lineWidth=1.2;
-        ctx.beginPath();ctx.arc(x,y,12+spread*23,0,Math.PI*2);ctx.stroke();
-        for(let i=0;i<7;i++){
-          const angle=i*Math.PI*2/7+key.charCodeAt(0)*.2,distance=19+spread*(32+i%3*5);
-          ctx.save();ctx.translate(x+Math.cos(angle)*distance,y+Math.sin(angle)*distance);ctx.scale(.24,.24);ctx.globalAlpha=alpha*.9;
-          art.petal(ctx,0,0,angle,false,color,colors.paper);ctx.restore();
-        }
+    const [x,y]=catchPoint(key),edge=edgeTrace(key).map(p=>flightPose().project(...p));
+    const travel=reduced?0:1-(1-age)**2,side=key==='a'||key==='s'?-1:1;
+    ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+    // Pigment belongs to the sail and the wind, rather than a floating badge.
+    if(kind==='hold'){
+      path(edge,colors['sail-light'],alpha*.22,8);
+      path(edge,colors.sail,alpha*.7,2.5);
+    }else if(kind==='hit'){
+      path(edge,colors['sail-light'],alpha*.25,10);
+      path(edge,colors.sail,alpha*.9,2.5);
+      ctx.save();ctx.translate(x,y);ctx.scale(side*(.7+travel*.3),.7+travel*.3);
+      // An open, tapered brush flourish lifts off the wing. No closed outline.
+      ctx.fillStyle=colors.sail;ctx.globalAlpha=alpha*.45;
+      ctx.beginPath();ctx.moveTo(-3,1);
+      ctx.bezierCurveTo(9,-1,12,-14,23,-13);
+      ctx.bezierCurveTo(35,-12,44,-25,51,-36);
+      ctx.bezierCurveTo(43,-18,31,-7,21,-8);
+      ctx.bezierCurveTo(11,-9,8,4,-3,1);ctx.fill();
+      ctx.globalAlpha=alpha*.16;ctx.strokeStyle=colors['sail-light'];ctx.lineWidth=4;
+      ctx.beginPath();ctx.moveTo(1,-1);ctx.bezierCurveTo(14,-13,27,-4,44,-27);ctx.stroke();ctx.restore();
+      for(let i=0;i<3;i++){
+        const distance=8+i*12+travel*(14+i*4);
+        const px=x+side*distance,py=y-5-i*6-travel*(17+i*3);
+        paintResultPetal(px,py,-.7-side*.4+(reduced?0:age*(i-1)*.65),.5-i*.065,false,colors.sail,alpha*(.82-i*.14));
       }
-    }else if(hold){
-      ctx.globalAlpha=alpha*.65;ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(x,y,14+spread*12,0,Math.PI*2);ctx.stroke();
     }else{
-      // Broken ink and falling fragments are deliberately unlike a rose bloom.
-      const radius=22+spread*9;
-      ctx.globalAlpha=alpha*.85;ctx.lineWidth=2.6;
-      for(const start of [.2,Math.PI+.2]){ctx.beginPath();ctx.arc(x,y,radius,start,start+Math.PI*.7);ctx.stroke();}
-      if(!reduced)for(let i=0;i<4;i++){
-        const dx=(i-1.5)*(9+spread*5),dy=8+age*age*38+i%2*7;
-        path([[x+dx-3,y+dy-3],[x+dx+2,y+dy+3]],color,alpha*.7,2);
+      const middle=Math.floor(edge.length/2);
+      path(edge,colors.ink,alpha*.08,7);
+      path(edge.slice(0,middle),colors.ink,alpha*.5,1.8);
+      path(edge.slice(middle+2),colors.ink,alpha*.35,1.2);
+      // Two uneven torn halves lose lift and fall into dry, dissolving ink.
+      const fall=reduced?0:age*age*36;
+      paintResultPetal(x+side*(9+travel*12),y+6+fall,-.3+(reduced?0:age*.8),.62,true,colors.ink,alpha*.65);
+      paintResultPetal(x-side*(3+travel*8),y+13+fall*.85,2.1-(reduced?0:age*.6),.4,true,colors.quiet,alpha*.5);
+      for(let i=0;i<5;i++){
+        const dx=side*(3+i*3+travel*(i%2?8:-4)),dy=16+i*3+fall*(.7+i*.06);
+        ctx.fillStyle=colors.ink;ctx.globalAlpha=alpha*(.22-i*.025);
+        ctx.beginPath();ctx.moveTo(x+dx,y+dy);ctx.lineTo(x+dx+2.3,y+dy+1);ctx.lineTo(x+dx+.5,y+dy+3);ctx.closePath();ctx.fill();
       }
-    }
-    if(!hold){
-      // Shape, as well as color, identifies the result. Keep the mark just
-      // inside the sail so the edge label and next incoming note remain clear.
-      const pose=flightPose(),dx=pose.cx-x,dy=pose.cy-y,length=Math.hypot(dx,dy);
-      const sx=x+dx/length*25,sy=y+dy/length*25;
-      ctx.fillStyle=colors.paper;ctx.globalAlpha=alpha*.94;
-      ctx.beginPath();ctx.arc(sx,sy,11,0,Math.PI*2);ctx.fill();
-      if(hit)path([[sx-5,sy],[sx-1,sy+4],[sx+6,sy-5]],color,alpha,2.5);
-      else{path([[sx-4,sy-4],[sx+4,sy+4]],color,alpha,2.5);path([[sx+4,sy-4],[sx-4,sy+4]],color,alpha,2.5);}
     }
     ctx.restore();
+  }
+  function paintResultPetal(x,y,angle,scale,torn,color,alpha){
+    ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.scale(scale,scale);
+    ctx.fillStyle=color;ctx.globalAlpha=alpha;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(-4,-7,-15,-10,-22,-2);
+    if(torn){ctx.lineTo(-14,-1);ctx.lineTo(-16,2);ctx.lineTo(-8,0);ctx.lineTo(-6,3);}
+    else ctx.bezierCurveTo(-14,8,-5,5,0,0);
+    ctx.closePath();ctx.fill();ctx.restore();
   }
   hands.forEach(button=>{
     const key=button.dataset.key;
