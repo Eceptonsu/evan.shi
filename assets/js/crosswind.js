@@ -28,7 +28,7 @@
   const emptyHeld=()=>Object.fromEntries(keys.map(k=>[k,null]));
   let elapsed=0,lastFrame=0,bank=0,lift=0,streak=0,hits=0,notes=[],held=emptyHeld(),messageUntil=0,impulseX=0,impulseY=0,bestStreak=0;
   let demoEvents=[],demoIndex=0,flashes={},travelX=0,altitude=0;
-  let forward=0,airspeed=1,gust=0;
+  let forward=0,airspeed=1,gust=0,windSeed=0;
   const inputSources=Object.fromEntries(keys.map(k=>[k,new Set()]));
   let windowSize=.32,approach=3;
   let beat=.75,duration=50*beat;
@@ -129,18 +129,25 @@
   function positionControls(){
     const pose=flightPose();hands.forEach(button=>{const [x,y]=catchPoint(button.dataset.key);button.style.left=x+'px';button.style.top=y+'px';button.style.transform='translate(-50%,-50%) rotate('+pose.tilt+'rad)';});
   }
+  function windGuide(key){
+    const target=catchPoint(key),v=approachVector(key);
+    return [[target[0]+v[0],target[1]+v[1]],target];
+  }
   function gustPosition(note,t,key=note.keys[0],edge=note.time){
     const target=catchPoint(key),v=approachVector(key),remaining=(edge-t)/approach;
     const length=Math.hypot(...v),wind=petalWind(note,t,key,edge);
     // A transverse sway keeps progress toward the wing uniform. It settles
     // completely for the final 450 ms, leaving a calm, readable contact.
-    const drift=reduced?0:Math.min(12,width*.023,length*.12)*wind.settle*Math.sin(wind.phase);
+    const drift=reduced?0:Math.min(12,width*.023,length*.12)*wind.strength*wind.settle*Math.sin(wind.phase);
     return {x:target[0]+v[0]*remaining-v[1]/length*drift,
       y:target[1]+v[1]*remaining+v[0]/length*drift,target};
   }
   function petalWind(note,t,key,edge=note.time){
     const u=Math.max(0,Math.min(1,(edge-t-.45)/.7));
-    return {settle:u*u*(3-2*u),phase:(1-(edge-t)/approach)*Math.PI*2.6+note.time*1.71+key.charCodeAt(0)*.37};
+    // One seed per flight: each note gets its own wind, never frame-by-frame jitter.
+    const rate=2.2+(.5+.5*Math.cos(note.time*.67+windSeed))*.8;
+    return {settle:u*u*(3-2*u),strength:.7+(.5+.5*Math.sin(note.time*1.23+windSeed))*.3,
+      phase:(1-(edge-t)/approach)*Math.PI*rate+note.time*1.71+key.charCodeAt(0)*.37+windSeed};
   }
   function petalPose(note,t,key,edge=note.time){
     const v=approachVector(key),base=Math.atan2(-v[1],-v[0]);
@@ -351,6 +358,7 @@
   function start(auto){
     if(loading || root.hidden)return;
     if(running)stop();generation++;running=true;demo=auto;elapsed=0;bank=0;lift=0;travelX=0;altitude=0;impulseX=0;impulseY=0;flashes={};hits=0;streak=0;bestStreak=0;messageUntil=0;lastFrame=performance.now();clockStart=performance.now();
+    windSeed=Math.random()*Math.PI*2;
     forward=0;airspeed=1;gust=0;
     beat = 60 / (customTrack ? customTrack.bpm : levels[difficulty].bpm);
     duration = customTrack ? customTrack.buffer.duration + approach + .25 : 50 * beat;
@@ -418,9 +426,7 @@
     // point on the sail; the native button uses that exact same coordinate.
     const activeKeys=new Set(visible.flatMap(n=>n.keys));
     activeKeys.forEach(key=>{
-      const note=visible.find(n=>n.keys.includes(key)),edge=note.armed?note.end:note.time;
-      const trace=Array.from({length:33},(_,i)=>{const p=gustPosition(note,edge-approach*(1-i/32),key,edge);return [p.x,p.y];});
-      path(trace,colors.line,.12,.8);
+      path(windGuide(key),colors.line,.08,.7);
     });
     function petal(point,key,n,open=false){
       const pose=petalPose(n,t,key,open?n.end:n.time);

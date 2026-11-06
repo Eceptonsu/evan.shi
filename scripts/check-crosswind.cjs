@@ -1,7 +1,7 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const html=fs.readFileSync(require('path').join(__dirname,'../_projects/cadence.html'),'utf8');
 let source=fs.readFileSync(require('path').join(__dirname,'../assets/js/crosswind.js'),'utf8');new vm.Script(source);
-source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={petalPose,birdPosition,worldPoint,advanceTravel,time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},setSpeed(v){airspeed=v;},snapshot(){return {forward,airspeed,hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
+source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={windGuide,petalPose,birdPosition,worldPoint,advanceTravel,time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},setSpeed(v){airspeed=v;},snapshot(){return {forward,airspeed,hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
 let rotation=0,rotations=[],strokes=[],pen=[];
 let now=0,frames=[],width=736,height=440,arcs=[],petals=[],resize,draws=0;const listeners={};
 function element(name){return {name,style:{},dataset:{},textContent:'',disabled:false,attrs:{},events:{},addEventListener(k,fn){this.events[k]=fn;},setAttribute(k,v){this.attrs[k]=v;},remove(){},setPointerCapture(){},getBoundingClientRect(){return {width,height};}};}
@@ -80,6 +80,22 @@ assert(Math.max(...poses.map(p=>p.fold))-Math.min(...poses.map(p=>p.fold))>.25,'
 assert(poses.every(p=>p.fold>=.58 && p.fold<=1),'Petals remain visible through each flutter');
 assert(Math.max(...poses.map(p=>p.angle))-Math.min(...poses.map(p=>p.angle))>.35,'Petals turn with the wind');
 api.setPose(0,0);api.setSpeed(1);
+// Replays get new wind, while straight guides and scoring stay fixed.
+const sampleNote={keys:['a'],time:3,end:4.25};
+const sampleWind=()=>Array.from({length:30},(_,i)=>api.gustPosition(sampleNote,1+i/30));
+const guides=JSON.stringify(['a','w','s','d'].map(k=>api.windGuide(k)));
+sandbox.Math=Object.assign(Object.create(Math),{random:()=>.15});start();
+const firstWind=JSON.stringify(sampleWind());assert.equal(JSON.stringify(sampleWind()),firstWind,'A flight has repeatable, jitter-free petal paths');
+sandbox.Math.random=()=>.85;start();
+assert.notEqual(JSON.stringify(sampleWind()),firstWind,'A new flight changes the petal drift');
+assert.equal(JSON.stringify(['a','w','s','d'].map(k=>api.windGuide(k))),guides,'Straight guides do not change with the flight seed');
+for(const k of ['a','w','s','d']){
+  const guide=api.windGuide(k),target=api.catchPoint(k),v=api.approachVector(k);
+  assert.equal(guide.length,2,'Reference is a straight line');assert.deepEqual(guide[1],target);
+  assert.deepEqual(guide[0],[target[0]+v[0],target[1]+v[1]]);
+  const p=api.gustPosition(sampleNote,3,k);assert.equal(p.x,target[0]);assert.equal(p.y,target[1]);
+}
+listeners.blur();sandbox.Math=Math;
 assert(!html.includes('laneLayout'));assert(!html.includes("fillText('HIT'"));
 // Forward travel must be present without banking, and respond smoothly to pitch.
 start();advance(1);assert(api.snapshot().forward>2 && api.snapshot().forward<2.2);assert.equal(api.snapshot().bank,0);
