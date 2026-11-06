@@ -1,7 +1,7 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const html=fs.readFileSync(require('path').join(__dirname,'../_projects/cadence.html'),'utf8');
 let source=fs.readFileSync(require('path').join(__dirname,'../assets/js/crosswind.js'),'utf8');new vm.Script(source);
-source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={windGuide,petalPose,birdPosition,worldPoint,advanceTravel,time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},setSpeed(v){airspeed=v;},snapshot(){return {forward,airspeed,hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
+source=source.replace(/\}\)\(\);\s*$/, 'globalThis.testStudy={resultAt,drawResult,windGuide,petalPose,birdPosition,worldPoint,advanceTravel,time,makeChart,gustPosition,catchPoint,sailPoints,approachVector,flightPose,worldView,edgeTrace,curvePoint,draw,setPose(x,y){bank=x;lift=y;},setSpeed(v){airspeed=v;},snapshot(){return {forward,airspeed,hits,bank,lift,travelX,altitude,streak,bestStreak,running,notes,held};}};})();');
 let rotation=0,rotations=[],strokes=[],pen=[];
 let now=0,frames=[],width=736,height=440,arcs=[],petals=[],resize,draws=0;const listeners={};
 function element(name){return {name,style:{},dataset:{},textContent:'',disabled:false,attrs:{},events:{},addEventListener(k,fn){this.events[k]=fn;},setAttribute(k,v){this.attrs[k]=v;},remove(){},setPointerCapture(){},getBoundingClientRect(){return {width,height};}};}
@@ -128,6 +128,18 @@ at(16.25);key('keydown','d');at(16.40);key('keydown','s');assert.equal(api.snaps
 at(17.5);hands[0].events.pointerdown({preventDefault(){},pointerId:1});at(18.75);hands[0].events.pointerup({pointerId:1});assert(api.snapshot().notes[10].hit,'touch holds score');
 at(20);hands[3].events.pointerdown({preventDefault(){},pointerId:2});at(21.25);hands[3].events.pointercancel({pointerId:2});assert.equal(api.snapshot().notes[11].hit,false,'pointer cancel never scores');
 listeners.blur();assert(!api.snapshot().running);assert.equal(frames.length,0);assert(Object.values(api.snapshot().held).every(v=>v===null));
+// Feedback must cover every outcome, including notes the player never touches.
+start();at(2.5);key('keydown','a');assert.equal(api.resultAt('a',2.5).kind,'hold','Capture acknowledges the hold without awarding a success');
+at(3.75);key('keyup','a');assert.equal(api.resultAt('a',3.75).kind,'hit');
+assert(api.resultAt('a',4.3),'Success remains visible long enough to read');assert.equal(api.resultAt('a',4.5),null,'Success effects expire');
+start();at(2.5);key('keydown','a');at(2.7);key('keyup','a');assert.equal(api.resultAt('a',2.7).kind,'miss','Early release gets a distinct failure');
+start();at(2.7);assert.equal(api.resultAt('a',2.7).kind,'miss','An untouched note gets visible missed feedback');
+start();at(1);tap('d');assert.equal(api.resultAt('d',1).kind,'miss','Wrong-time presses get feedback at the pressed edge');
+start();at(15);tap('a');at(15.2);assert.equal(api.resultAt('a',15.2).kind,'miss');assert.equal(api.resultAt('w',15.2).kind,'miss','Incomplete chords mark both required edges');
+start();assert.equal(api.resultAt('a',0),null,'A new flight clears old results');
+arcs=[];api.drawResult('a',{kind:'hit',age:.25,alpha:.8});assert(arcs.filter(a=>Math.abs(a[4]-a[3]-Math.PI*2)<1e-8).length>=3,'Success draws complete blooming rings');
+arcs=[];api.drawResult('a',{kind:'miss',age:.25,alpha:.8});assert.equal(arcs.filter(a=>a[4]-a[3]<Math.PI).length,2,'Failure draws two broken arcs');
+listeners.blur();assert.equal(api.resultAt('a',0),null,'Stopping clears effects');
 // Chords can be played with two fingers, without keyboard simulation.
 start();at(15);hands[0].events.pointerdown({preventDefault(){},pointerId:7});hands[1].events.pointerdown({preventDefault(){},pointerId:8});assert(api.snapshot().notes[8].hit);hands[0].events.pointerup({pointerId:7});hands[1].events.pointerup({pointerId:8});
 // Holding keys before an event cannot farm points; release/press is required.
@@ -151,6 +163,8 @@ const quiet=sandbox.testStudy;document.dispatchEvent({type:"cadence:mode",detail
 assert(Math.abs(quiet.flightPose().tilt)<.05);assert(Math.abs(quiet.worldView().roll)<.02);assert.equal(quiet.worldView().pan,0);assert.equal(quiet.worldView().pitch,0);assert.equal(quiet.worldView().zoom,1);
 assert.deepEqual(quiet.birdPosition(0,0),quiet.birdPosition(0,10),'Reduced motion keeps birds still');
 assert.deepEqual(quiet.petalPose({time:3},1,'a'),quiet.petalPose({time:3},2,'a'),'Reduced motion disables petal flutter');
+arcs=[];quiet.drawResult('a',{kind:'hit',age:.1,alpha:.9});const stillRadii=arcs.map(a=>a[2]);
+arcs=[];quiet.drawResult('a',{kind:'hit',age:.7,alpha:.4});assert.deepEqual(arcs.map(a=>a[2]),stillRadii,'Reduced motion keeps the outcome mark without expansion');
 quiet.advanceTravel(2);assert.equal(quiet.snapshot().forward,0,'Reduced motion suppresses forward travel');assert.equal(quiet.snapshot().airspeed,1);
 async function verifyRecording() {
   document.dispatchEvent({type:'cadence:mode',detail:{mode:'crosswind',level:'easy'}});
@@ -220,4 +234,4 @@ async function verifyRecording() {
   assert.equal(elements['.cw-start'].textContent,'Play');
   assert.equal(elements['.cw-phrase'].textContent,'Hard · holds, chords & releases');
 }
-verifyRecording().then(()=>console.log('Crosswind checks passed: flutter, independent bird flight, stable arrival timing, edge alignment, reduced motion, 20/20 demo, keyboard and touch scoring, custom recording playback and cleanup, and original score restoration.')).catch(error=>{console.error(error);process.exitCode=1;});
+verifyRecording().then(()=>console.log('Crosswind checks passed: success/miss effects, flutter, independent bird flight, stable arrival timing, edge alignment, reduced motion, 20/20 demo, keyboard and touch scoring, custom recording playback and cleanup, and original score restoration.')).catch(error=>{console.error(error);process.exitCode=1;});

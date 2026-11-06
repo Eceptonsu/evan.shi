@@ -27,7 +27,7 @@
   const keys=['a','w','s','d'], names={a:'Turn left',d:'Turn right',w:'Climb',s:'Dive'};
   const emptyHeld=()=>Object.fromEntries(keys.map(k=>[k,null]));
   let elapsed=0,lastFrame=0,bank=0,lift=0,streak=0,hits=0,notes=[],held=emptyHeld(),messageUntil=0,impulseX=0,impulseY=0,bestStreak=0;
-  let demoEvents=[],demoIndex=0,flashes={},travelX=0,altitude=0;
+  let demoEvents=[],demoIndex=0,judgments={},travelX=0,altitude=0;
   let forward=0,airspeed=1,gust=0,windSeed=0;
   const inputSources=Object.fromEntries(keys.map(k=>[k,new Set()]));
   let windowSize=.32,approach=3;
@@ -49,7 +49,7 @@
   function resetFlightView() {
     elapsed = bank = lift = travelX = altitude = 0;
     forward=0;airspeed=1;gust=0;
-    flashes = {};
+    judgments = {};
     notes = [];
     startButton.textContent = 'Play';
     phrase.textContent = levels[difficulty].label;
@@ -307,11 +307,20 @@
     return Math.max(0,heard-audioStart);
   }
   function feedback(text,t){status.textContent=text;messageUntil=t+.35;}
-  function miss(note,text,t){if(note.done)return;note.done=true;streak=0;feedback(text,t);}
+  function markResult(key,kind,t){judgments[key]={kind,at:t};}
+  function resultAt(key,t){
+    const result=judgments[key];if(!result)return null;
+    const duration=result.kind==='hold'?.4:result.kind==='hit'?.72:.88,age=(t-result.at)/duration;
+    return age>=0 && age<1?{kind:result.kind,age,alpha:Math.pow(1-age,.65)}:null;
+  }
+  function miss(note,text,t){
+    if(note.done)return;note.done=true;streak=0;
+    note.keys.forEach(key=>markResult(key,'miss',t));feedback(text,t);
+  }
   function hit(note,t){
     if(note.done)return;note.done=true;note.hit=true;hits++;streak++;bestStreak=Math.max(bestStreak,streak);
     gust=Math.min(1,gust+.65);
-    for(const key of note.keys){flashes[key]=t;if(key==='a')impulseX=-1;if(key==='d')impulseX=1;if(key==='w')impulseY=1;if(key==='s')impulseY=-1;}
+    for(const key of note.keys){markResult(key,'hit',t);if(key==='a')impulseX=-1;if(key==='d')impulseX=1;if(key==='w')impulseY=1;if(key==='s')impulseY=-1;}
     const err=Math.max(...note.keys.map(k=>Math.abs((note.kind==='hold'?t:note.presses[k])-(note.kind==='hold'?note.end:note.time))));
     feedback((err<.075?'Clean':'Caught')+' · '+streak+' streak',t);
   }
@@ -321,13 +330,13 @@
     const note=notes.find(n=>!n.done && !n.armed && n.keys.includes(key) && Math.abs(n.time-t)<=windowSize);
     if(note){
       note.presses[key]=t;
-      if(note.kind==='hold'){note.armed=true;feedback('Keep holding '+key.toUpperCase(),t);}
+      if(note.kind==='hold'){note.armed=true;markResult(key,'hold',t);feedback('Keep holding '+key.toUpperCase(),t);}
       else if(note.keys.every(k=>held[k]!==null && note.presses[k]!==undefined)){
         const times=note.keys.map(k=>note.presses[k]);
         if(Math.max(...times)-Math.min(...times)<=.11)hit(note,t);
         else miss(note,'Closer together',t);
       }
-    }else{streak=0;feedback('Wait for the marker',t);}
+    }else{streak=0;markResult(key,'miss',t);feedback('Wait for the marker',t);}
     controlCues(activeNote(),t);
   }
   function release(key,cancel=false,t=time()){
@@ -349,6 +358,7 @@
     settingsFields.disabled = false;
     document.dispatchEvent(new CustomEvent('cadence:flight',{detail:false}));
     running=false;generation++;cancelAnimationFrame(raf);silence();clearInputs();hands.forEach(b=>{b.disabled=true;b.setAttribute('aria-pressed','false');});
+    if(!finished)judgments={};
     controlCues(null,elapsed);
     startButton.textContent='Fly again';demoButton.disabled=false;demoButton.textContent='Watch demo';
     status.textContent=finished?(demo?'Your turn. Ride the wind.':hits+' / '+notes.length+' moves · best streak '+bestStreak):'Flight stopped.';
@@ -357,7 +367,7 @@
   }
   function start(auto){
     if(loading || root.hidden)return;
-    if(running)stop();generation++;running=true;demo=auto;elapsed=0;bank=0;lift=0;travelX=0;altitude=0;impulseX=0;impulseY=0;flashes={};hits=0;streak=0;bestStreak=0;messageUntil=0;lastFrame=performance.now();clockStart=performance.now();
+    if(running)stop();generation++;running=true;demo=auto;elapsed=0;bank=0;lift=0;travelX=0;altitude=0;impulseX=0;impulseY=0;judgments={};hits=0;streak=0;bestStreak=0;messageUntil=0;lastFrame=performance.now();clockStart=performance.now();
     windSeed=Math.random()*Math.PI*2;
     forward=0;airspeed=1;gust=0;
     beat = 60 / (customTrack ? customTrack.bpm : levels[difficulty].bpm);
@@ -459,19 +469,57 @@
     });
     keys.forEach(key=>{
       if(difficulty==='easy' && !['a','d'].includes(key))return;
-      const [x,y]=catchPoint(key);
-      const flash=flashes[key]===undefined?0:Math.max(0,1-(t-flashes[key])*4);
+      const result=resultAt(key,t);
       const active=held[key]!==null || running && notes.some(n=>!n.done && n.keys.includes(key) && Math.abs((n.armed?n.end:n.time)-t)<windowSize),edge=edgeTrace(key).map(p=>flightPose().project(...p));
       ctx.save();ctx.lineCap='round';
-      path(edge,active || flash?colors.sail:colors.ink,active || flash?1:.6,active || flash?4:1.5);ctx.restore();
-      if(flash && !reduced){
-        const age=1-flash;
-        for(let i=0;i<4;i++){
-          const angle=i*1.7+key.charCodeAt(0),distance=10+age*27;
-          path([[x+Math.cos(angle)*distance,y+Math.sin(angle)*distance],[x+Math.cos(angle)*(distance+5),y+Math.sin(angle)*(distance+5)]],colors.sail,flash*.5,1.4);
+      path(edge,result?.kind==='miss'?colors.ink:active || result?colors.sail:colors.ink,active || result?1:.6,result?5:active?4:1.5);ctx.restore();
+      if(result)drawResult(key,result);
+    });
+  }
+  function drawResult(key,{kind,age,alpha}){
+    const [x,y]=catchPoint(key),hit=kind==='hit',hold=kind==='hold';
+    const spread=reduced?0:1-(1-age)**3,color=kind==='miss'?colors.ink:colors.sail;
+    ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=color;
+    if(hit){
+      // A wash of rose, two clear rings, and small silk flecks open from the catch.
+      const radius=18+spread*34;
+      ctx.fillStyle=colors['sail-light'];ctx.globalAlpha=alpha*.3;
+      ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=color;ctx.globalAlpha=alpha*.9;ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.stroke();
+      if(!reduced){
+        ctx.globalAlpha=alpha*.5;ctx.lineWidth=1.2;
+        ctx.beginPath();ctx.arc(x,y,12+spread*23,0,Math.PI*2);ctx.stroke();
+        for(let i=0;i<7;i++){
+          const angle=i*Math.PI*2/7+key.charCodeAt(0)*.2,distance=19+spread*(32+i%3*5);
+          ctx.save();ctx.translate(x+Math.cos(angle)*distance,y+Math.sin(angle)*distance);ctx.scale(.24,.24);ctx.globalAlpha=alpha*.9;
+          art.petal(ctx,0,0,angle,false,color,colors.paper);ctx.restore();
         }
       }
-    });
+    }else if(hold){
+      ctx.globalAlpha=alpha*.65;ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(x,y,14+spread*12,0,Math.PI*2);ctx.stroke();
+    }else{
+      // Broken ink and falling fragments are deliberately unlike a rose bloom.
+      const radius=22+spread*9;
+      ctx.globalAlpha=alpha*.85;ctx.lineWidth=2.6;
+      for(const start of [.2,Math.PI+.2]){ctx.beginPath();ctx.arc(x,y,radius,start,start+Math.PI*.7);ctx.stroke();}
+      if(!reduced)for(let i=0;i<4;i++){
+        const dx=(i-1.5)*(9+spread*5),dy=8+age*age*38+i%2*7;
+        path([[x+dx-3,y+dy-3],[x+dx+2,y+dy+3]],color,alpha*.7,2);
+      }
+    }
+    if(!hold){
+      // Shape, as well as color, identifies the result. Keep the mark just
+      // inside the sail so the edge label and next incoming note remain clear.
+      const pose=flightPose(),dx=pose.cx-x,dy=pose.cy-y,length=Math.hypot(dx,dy);
+      const sx=x+dx/length*25,sy=y+dy/length*25;
+      ctx.fillStyle=colors.paper;ctx.globalAlpha=alpha*.94;
+      ctx.beginPath();ctx.arc(sx,sy,11,0,Math.PI*2);ctx.fill();
+      if(hit)path([[sx-5,sy],[sx-1,sy+4],[sx+6,sy-5]],color,alpha,2.5);
+      else{path([[sx-4,sy-4],[sx+4,sy+4]],color,alpha,2.5);path([[sx+4,sy-4],[sx-4,sy+4]],color,alpha,2.5);}
+    }
+    ctx.restore();
   }
   hands.forEach(button=>{
     const key=button.dataset.key;
